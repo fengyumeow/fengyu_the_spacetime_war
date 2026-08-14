@@ -1,0 +1,38 @@
+{
+  "key.playerinfo.show_player_info": "显示玩家信息",
+  "key.categories.playerinfo": "玩家信息",
+
+  "screen.playerinfo.title": "战斗信息",
+  "screen.playerinfo.personal_title": "个人信息",
+  "screen.playerinfo.titles": "称号",
+  "screen.playerinfo.back_to_personal": "返回个人信息",
+  "screen.playerinfo.title_equip": "佩戴",
+  "screen.playerinfo.title_unequip": "未佩戴",
+  "screen.playerinfo.history_title": "历史战绩",
+  "screen.playerinfo.history_page_tooltip": "历史记录 %s",
+  "screen.playerinfo.page_switch_tooltip": "当前界面：%1$s；点击切换至：%2$s",
+  "screen.playerinfo.player_name": "玩家名称",
+  "screen.playerinfo.job": "职业",
+  "screen.playerinfo.job.warrior": "战士",
+  "screen.playerinfo.job.ranger": "游侠",
+  "screen.playerinfo.job.crusader": "十字军",
+  "screen.playerinfo.job.iron_tower_guard": "铁塔盾卫",
+  "screen.playerinfo.job.flame_demon": "炎魔",
+  "screen.playerinfo.job.druid": "德鲁伊",
+  "screen.playerinfo.team": "队伍",
+  "screen.playerinfo.team.red": "红队",
+  "screen.playerinfo.team.blue": "蓝队",
+  "screen.playerinfo.no_team": "无队伍",
+
+  "screen.playerinfo.total_games": "总场数",
+  "screen.playerinfo.total_wins": "总胜场",
+  "screen.playerinfo.total_kills": "总击杀数",
+  "screen.playerinfo.total_deaths": "总死亡数",
+  "screen.playerinfo.total_damage": "总伤害量",
+  "screen.playerinfo.total_damage_absorbed": "总受伤量",
+
+  "screen.playerinfo.kill_count": "击杀数",
+  "screen.playerinfo.death_count": "死亡数",
+  "screen.playerinfo.damage_dealt": "伤害量",
+  "screen.playerinfo.damage_absorbed": "承伤量"
+}
