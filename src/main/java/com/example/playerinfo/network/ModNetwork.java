@@ -53,6 +53,24 @@ public final class ModNetwork {
                 TitleStateS2CPacket::decode,
                 TitleStateS2CPacket::handle
         );
+
+        // 客户端请求历史记录
+        CHANNEL.registerMessage(
+                packetId++,
+                RequestHistoryPacket.class,
+                RequestHistoryPacket::encode,
+                RequestHistoryPacket::decode,
+                RequestHistoryPacket::handle
+        );
+
+        // 服务端响应历史记录
+        CHANNEL.registerMessage(
+                packetId++,
+                ResponseHistoryPacket.class,
+                ResponseHistoryPacket::encode,
+                ResponseHistoryPacket::decode,
+                ResponseHistoryPacket::handle
+        );
     }
 
     private ModNetwork() {
