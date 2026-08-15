@@ -3,9 +3,9 @@ package com.example.playerinfo.client;
 // PLAYER_INFO_SCREEN_PHYSICAL_KEY_V5
 // Forge 1.20.1：读取当前绑定键的物理按下状态，防止界面频闪。
 
-import com.example.playerinfo.network.HistoryPageData;
-import com.example.playerinfo.network.PlayerInfoEntry;
-import com.example.playerinfo.network.PersonalStats;
+import com.example.playerinfo.data.HistoryData;
+import com.example.playerinfo.data.PlayerData;
+import com.example.playerinfo.network.*;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
@@ -71,7 +71,7 @@ public final class PlayerInfoScreen extends Screen {
     private final PersonalStats personalStats;
     private final List<String> objectiveNames;
     private final List<PlayerInfoEntry> players;
-    private final List<HistoryPageData> historyPages;
+    private List<HistoryPageData> historyPages;
     private final List<PlayerInfoEntry> sortedPlayers =
             new ArrayList<>();
     private final List<PlayerInfoEntry> sortedHistoryPlayers =
@@ -102,6 +102,7 @@ public final class PlayerInfoScreen extends Screen {
     private Page transitionTarget;
     private boolean pageTransitionActive;
     private long pageTransitionStartMillis;
+    private boolean historyLoading;
 
     public PlayerInfoScreen(
             PersonalStats personalStats,
@@ -125,8 +126,14 @@ public final class PlayerInfoScreen extends Screen {
         this.players =
                 List.copyOf(players);
 
-        this.historyPages =
-                List.copyOf(historyPages);
+        this.historyPages = new ArrayList<>();  // 初始使用空数据，之后动态更新
+        this.historyLoading = false;
+
+        // 如果缓存有数据，立即填充
+        List<HistoryData> cached = ClientHistoryManager.getCachedHistory();
+        if (!cached.isEmpty()) {
+            updateHistoryData(cached);
+        }
 
         this.sortedPlayers.addAll(this.players);
 
@@ -144,6 +151,13 @@ public final class PlayerInfoScreen extends Screen {
         refreshSortedHistoryPlayers();
 
         updateButtonPositions();
+
+        // 注册历史数据监听器
+        ClientHistoryManager.addResponseListener(this::onHistoryResponse);
+        // 如果当前就在历史页且数据未加载，立即请求
+        if (currentPage == Page.HISTORY) {
+            requestHistoryData();
+        }
     }
 
     private void updateButtonPositions() {
@@ -701,6 +715,11 @@ public final class PlayerInfoScreen extends Screen {
         selectedPage = transitionTarget;
         pageTransitionStartMillis = Util.getMillis();
         pageTransitionActive = true;
+
+        // 如果目标页面是历史记录，且数据未加载，则请求数据
+        if (transitionTarget == Page.HISTORY) {
+            requestHistoryData();
+        }
     }
 
     private void playButtonClickSound() {
@@ -1035,6 +1054,30 @@ public final class PlayerInfoScreen extends Screen {
                 panelY + PADDING + 7,
                 HEADER_TEXT_COLOR
         );
+
+        if (historyLoading) {
+            // 显示“加载中...”
+            graphics.drawCenteredString(
+                    font,
+                    Component.translatable("screen.playerinfo.loading"),
+                    panelX + panelWidth / 2,
+                    panelY + panelHeight / 2,
+                    TEXT_COLOR
+            );
+            return;
+        }
+
+        if (historyPages.isEmpty()) {
+            // 显示“无记录”
+            graphics.drawCenteredString(
+                    font,
+                    Component.translatable("screen.playerinfo.no_history"),
+                    panelX + panelWidth / 2,
+                    panelY + panelHeight / 2,
+                    TEXT_COLOR
+            );
+            return;
+        }
 
         int tableX = panelX + PADDING;
         int tableWidth = Math.max(
@@ -2099,6 +2142,61 @@ public final class PlayerInfoScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private void requestHistoryData() {
+        if (historyLoading) {
+            return;
+        }
+        historyLoading = true;
+
+        // 发送请求最近5条记录
+        ModNetwork.CHANNEL.sendToServer(RequestHistoryPacket.requestRecent(5));
+    }
+
+    /**
+     * 当服务端响应到达时调用，更新历史数据
+     */
+    public void updateHistoryData(List<HistoryData> historyDataList) {
+        historyLoading = false;
+
+        // 转换为 List<HistoryPageData>
+        List<HistoryPageData> newPages = new ArrayList<>();
+        for (HistoryData historyData : historyDataList) {
+            List<PlayerInfoEntry> entries = new ArrayList<>();
+            for (PlayerData pd : historyData.getPlayerDataList()) {
+                entries.add(new PlayerInfoEntry(
+                        pd.getName(),
+                        pd.getJobId(),
+                        pd.getTeamName(),
+                        pd.getTeamColor(),
+                        pd.getScores()
+                ));
+            }
+            newPages.add(new HistoryPageData(entries));
+        }
+
+        historyPages = newPages;
+        // 确保选中页有效
+        if (selectedHistoryPageIndex >= historyPages.size()) {
+            selectedHistoryPageIndex = Math.max(0, historyPages.size() - 1);
+        }
+        refreshSortedHistoryPlayers();
+    }
+
+    // 监听器回调
+    private void onHistoryResponse(List<HistoryData> historyDataList) {
+        // 仅当屏幕还开着时更新
+        if (minecraft != null && minecraft.screen == this) {
+            updateHistoryData(historyDataList);
+        }
+    }
+
+    @Override
+    public void onClose() {
+        super.onClose();
+        // 移除监听器
+        ClientHistoryManager.removeResponseListener(this::onHistoryResponse);
     }
 
     private enum Page {

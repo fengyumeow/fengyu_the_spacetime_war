@@ -2,9 +2,9 @@ package com.example.playerinfo;
 
 import com.example.playerinfo.data.HistoryFileManager;
 import com.example.playerinfo.network.ModNetwork;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -18,14 +18,13 @@ public final class PlayerInfoMod {
     public PlayerInfoMod(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
         modEventBus.addListener(this::commonSetup);
-        modEventBus.register(this);
+        MinecraftForge.EVENT_BUS.addListener(this::onServerStarting);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(ModNetwork::register);
     }
 
-    @SubscribeEvent
     private void onServerStarting(ServerStartingEvent event) {
         HistoryFileManager.init(event.getServer());
     }

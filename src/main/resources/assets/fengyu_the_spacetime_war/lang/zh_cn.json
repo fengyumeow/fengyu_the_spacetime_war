@@ -11,6 +11,8 @@
   "screen.playerinfo.history_title": "历史战绩",
   "screen.playerinfo.history_page_tooltip": "历史记录 %s",
   "screen.playerinfo.page_switch_tooltip": "当前界面：%1$s；点击切换至：%2$s",
+  "screen.playerinfo.loading": "加载中...",
+  "screen.playerinfo.no_history": "暂无历史记录",
   "screen.playerinfo.player_name": "玩家名称",
   "screen.playerinfo.job": "职业",
   "screen.playerinfo.job.warrior": "战士",
