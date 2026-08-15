@@ -332,34 +332,16 @@ public final class PlayerInfoScreen extends Screen {
                 HEADER_COLOR
         );
 
-        int availableWidth = tableWidth;
+        int nameWidth = Math.max(1, tableWidth * 22 / 100);
+        int jobWidth = Math.max(1, tableWidth * 14 / 100);
+        int teamWidth = Math.max(1, tableWidth * 14 / 100);
 
-        int nameWidth = Math.max(
-                1,
-                availableWidth * 22 / 100
-        );
-
-        int jobWidth = Math.max(
-                1,
-                availableWidth * 14 / 100
-        );
-
-        int teamWidth = Math.max(
-                1,
-                availableWidth * 14 / 100
-        );
-
-        int remainingWidth =
-                availableWidth
-                        - nameWidth
-                        - jobWidth
-                        - teamWidth;
-
-        int scoreWidth =
-                remainingWidth / scoreColumnCount;
+        int remainingWidth = tableWidth - nameWidth - jobWidth - teamWidth;
+        int scoreWidth = remainingWidth / scoreColumnCount;
 
         int currentX = tableX;
 
+        // 名字
         drawHeader(
                 graphics,
                 Component.translatable(
@@ -369,9 +351,9 @@ public final class PlayerInfoScreen extends Screen {
                 headerY,
                 nameWidth
         );
-
         currentX += nameWidth;
 
+        // 职业
         drawHeader(
                 graphics,
                 Component.translatable(
@@ -381,9 +363,9 @@ public final class PlayerInfoScreen extends Screen {
                 headerY,
                 jobWidth
         );
-
         currentX += jobWidth;
 
+        // 队伍
         drawHeader(
                 graphics,
                 Component.translatable(
@@ -393,9 +375,9 @@ public final class PlayerInfoScreen extends Screen {
                 headerY,
                 teamWidth
         );
-
         currentX += teamWidth;
 
+        // 得分
         for (String objectiveName : objectiveNames) {
             drawHeader(
                     graphics,
@@ -416,37 +398,30 @@ public final class PlayerInfoScreen extends Screen {
                 rowsBottom + combatOffsetY
         );
 
-        int endIndex = Math.min(
-                sortedPlayers.size(),
-                scrollOffset + visibleRows
-        );
+        // 遍历并绘制每一行玩家数据
+        int endIndex = Math.min(sortedPlayers.size(), scrollOffset + visibleRows);
 
-        for (int index = scrollOffset;
-             index < endIndex;
-             index++) {
+        for (int index = scrollOffset; index < endIndex; index++) {
 
-            PlayerInfoEntry entry =
-                    sortedPlayers.get(index);
+            PlayerInfoEntry entry = sortedPlayers.get(index);
 
             int visibleIndex = index - scrollOffset;
 
-            int rowY =
-                    rowsY + visibleIndex * ROW_HEIGHT;
+            int rowY = rowsY + visibleIndex * ROW_HEIGHT;
 
             int rowColor = visibleIndex % 2 == 0
                     ? ROW_COLOR_1
                     : ROW_COLOR_2;
 
-            graphics.fill(
-                    tableX,
+            graphics.fill(tableX,
                     rowY,
                     tableX + tableWidth,
                     rowY + ROW_HEIGHT,
                     rowColor
             );
-
             currentX = tableX;
 
+            // 玩家名称
             drawLeftCell(
                     graphics,
                     entry.playerName(),
@@ -454,11 +429,21 @@ public final class PlayerInfoScreen extends Screen {
                     rowY,
                     nameWidth
             );
-
+            // Ping
+            int ping = ClientPingCache.getPing(entry.playerName());
+            int pingColor = PingColors.getColor(ping);
+            drawRightCell(
+                    graphics,
+                    ping + "ms",
+                    currentX,
+                    rowY,
+                    nameWidth,
+                    pingColor
+            );
             currentX += nameWidth;
 
+            // 职业
             Job job = Job.fromId(entry.jobId());
-
             drawCenterCell(
                     graphics,
                     job.getDisplayName(),
@@ -467,11 +452,10 @@ public final class PlayerInfoScreen extends Screen {
                     jobWidth,
                     job.getTextColor()
             );
-
             currentX += jobWidth;
 
-            boolean hasTeam =
-                    !entry.teamName().isBlank();
+            // 队伍
+            boolean hasTeam = !entry.teamName().isBlank();
 
             String teamName = Component.translatable("screen.playerinfo.no_team").getString();
             if (hasTeam) {
@@ -1836,17 +1820,8 @@ public final class PlayerInfoScreen extends Screen {
         );
     }
 
-    private void drawLeftCell(
-            GuiGraphics graphics,
-            String text,
-            int x,
-            int y,
-            int cellWidth
-    ) {
-        String shortened = font.plainSubstrByWidth(
-                text,
-                cellWidth - 8
-        );
+    private void drawLeftCell(GuiGraphics graphics, String text, int x, int y, int cellWidth) {
+        String shortened = font.plainSubstrByWidth(text, cellWidth - 8);
 
         graphics.drawString(
                 font,
@@ -1858,35 +1833,25 @@ public final class PlayerInfoScreen extends Screen {
         );
     }
 
-    private void drawCenterCell(
-            GuiGraphics graphics,
-            String text,
-            int x,
-            int y,
-            int cellWidth
-    ) {
-        drawCenterCell(
-                graphics,
-                text,
-                x,
-                y,
-                cellWidth,
-                TEXT_COLOR
+    private void drawRightCell(GuiGraphics graphics, String text, int x, int y, int cellWidth, int color) {
+        String shortened = font.plainSubstrByWidth(text, cellWidth - 8);
+
+        graphics.drawString(
+                font,
+                shortened,
+                x + cellWidth - 4 - font.width(shortened),
+                y + (ROW_HEIGHT - font.lineHeight) / 2,
+                color,
+                false
         );
     }
 
-    private void drawCenterCell(
-            GuiGraphics graphics,
-            String text,
-            int x,
-            int y,
-            int cellWidth,
-            int color
-    ) {
-        String shortened = font.plainSubstrByWidth(
-                text,
-                Math.max(0, cellWidth - 6)
-        );
+    private void drawCenterCell(GuiGraphics graphics, String text, int x, int y, int cellWidth) {
+        drawCenterCell(graphics, text, x, y, cellWidth, TEXT_COLOR);
+    }
+
+    private void drawCenterCell(GuiGraphics graphics, String text, int x, int y, int cellWidth, int color) {
+        String shortened = font.plainSubstrByWidth(text, Math.max(0, cellWidth - 6));
 
         graphics.drawCenteredString(
                 font,
