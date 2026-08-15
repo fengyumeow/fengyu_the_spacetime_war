@@ -473,11 +473,16 @@ public final class PlayerInfoScreen extends Screen {
             boolean hasTeam =
                     !entry.teamName().isBlank();
 
-            String teamName = hasTeam
-                    ? entry.teamName()
-                    : Component.translatable(
-                    "screen.playerinfo.no_team"
-            ).getString();
+            String teamName = Component.translatable("screen.playerinfo.no_team").getString();
+            if (hasTeam) {
+                if (entry.teamName().equals("red")) {
+                    teamName = Component.translatable("screen.playerinfo.team.red").getString();
+                } else if (entry.teamName().equals("blue")) {
+                    teamName = Component.translatable("screen.playerinfo.team.blue").getString();
+                } else {
+                    teamName = entry.teamName();
+                }
+            }
 
             int teamTextColor = hasTeam
                     ? entry.teamColor()
