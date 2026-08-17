@@ -116,6 +116,55 @@ public enum PlayerTitle {
                     .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD),
             "amazing_fengyu达到100",
             true
+    ),
+    HUGE_ENERGY(
+            "huge_energy",
+            "balrog_huge_energy",
+            300,
+            Component.literal("能量巨大💥")
+                    .withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
+            "使用炎魔在一次自爆内击杀4名以上玩家3次"
+    ),
+    HOOKED(
+            "hooked",
+            "weapon_VinesHitCount",
+            200,
+            Component.literal("🎣上钩啦！！！")
+                    .withStyle(ChatFormatting.DARK_GREEN, ChatFormatting.BOLD),
+            "使用德鲁伊勾住过200人"
+    ),
+    SURVIVE_LOW_HEALTH(
+            "survive_low_health",
+            "iron_chenghao1",
+            100,
+            Component.literal("嘻嘻,我要活下去")
+                    .withStyle(ChatFormatting.GRAY, ChatFormatting.BOLD),
+            "使用铁塔盾卫在10血以下存活90秒"
+    ),
+    DIVINE_ARCHER(
+            "divine_archer",
+            "ranger_50kill",
+            500,
+            Component.literal("天神射手🏹")
+                    .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
+            "使用游侠在30格外击杀5名玩家"
+    ),
+    NETHERITE_WRAPPED(
+            "netherite_wrapped",
+            "vanilla_nether_enchanting",
+            1_000,
+            Component.literal("残骸裹身！")
+                    .withStyle(ChatFormatting.DARK_BLUE, ChatFormatting.BOLD),
+            "使用战士附魔下界合金装备10次"
+    ),
+    SERVER_ADMIN(
+            "server_admin",
+            "admin_server",
+            100,
+            Component.literal("管理员-有问题呼叫")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD),
+            "隐藏称号",
+            true
     );
 
     public static final String NONE_ID = "";
@@ -203,6 +252,13 @@ public enum PlayerTitle {
             case "total_kill" -> stats.totalKills() >= threshold;
             case "total_death" -> stats.totalDeaths() >= threshold;
             case "amazing_fengyu" -> stats.amazingFengyu() >= threshold;
+            case "balrog_huge_energy" -> stats.balrogHugeEnergy() >= threshold;
+            case "weapon_VinesHitCount" -> stats.vinesHitCount() >= threshold;
+            case "iron_chenghao1" -> stats.ironTitleOne() >= threshold;
+            case "ranger_50kill" -> stats.rangerFiftyKill() >= threshold;
+            case "vanilla_nether_enchanting" ->
+                    stats.vanillaNetherEnchanting() >= threshold;
+            case "admin_server" -> stats.adminServer() == threshold;
             default -> false;
         };
     }

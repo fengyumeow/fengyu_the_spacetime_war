@@ -103,7 +103,13 @@ public final class PlayerTitleData {
                 readScore(scoreboard, scoreOwner, "total_death"),
                 readScore(scoreboard, scoreOwner, "total_damage"),
                 readScore(scoreboard, scoreOwner, "total_damage_absorbed"),
-                readScore(scoreboard, scoreOwner, "amazing_fengyu")
+                readScore(scoreboard, scoreOwner, "amazing_fengyu"),
+                readScore(scoreboard, scoreOwner, "balrog_huge_energy"),
+                readScore(scoreboard, scoreOwner, "weapon_VinesHitCount"),
+                readScore(scoreboard, scoreOwner, "iron_chenghao1"),
+                readScore(scoreboard, scoreOwner, "ranger_50kill"),
+                readScore(scoreboard, scoreOwner, "vanilla_nether_enchanting"),
+                readScore(scoreboard, scoreOwner, "admin_server")
         );
     }
 

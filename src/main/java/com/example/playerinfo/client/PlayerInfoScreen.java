@@ -449,8 +449,7 @@ public final class PlayerInfoScreen extends Screen {
                     job.getDisplayName(),
                     currentX,
                     rowY,
-                    jobWidth,
-                    job.getTextColor()
+                    jobWidth
             );
             currentX += jobWidth;
 
@@ -1217,8 +1216,7 @@ public final class PlayerInfoScreen extends Screen {
                     job.getDisplayName(),
                     currentX,
                     rowY,
-                    jobWidth,
-                    job.getTextColor()
+                    jobWidth
             );
             currentX += jobWidth;
 
@@ -1862,6 +1860,27 @@ public final class PlayerInfoScreen extends Screen {
         );
     }
 
+    private void drawCenterCell(
+            GuiGraphics graphics,
+            Component text,
+            int x,
+            int y,
+            int cellWidth
+    ) {
+        String shortened = font.plainSubstrByWidth(
+                text.getString(),
+                Math.max(0, cellWidth - 6)
+        );
+
+        graphics.drawCenteredString(
+                font,
+                Component.literal(shortened).setStyle(text.getStyle()),
+                x + cellWidth / 2,
+                y + (ROW_HEIGHT - font.lineHeight) / 2,
+                TEXT_COLOR
+        );
+    }
+
     private void drawHistoryTeamCell(
             GuiGraphics graphics,
             String teamScore,
@@ -2296,6 +2315,13 @@ public final class PlayerInfoScreen extends Screen {
                 ChatFormatting.RED
         ),
 
+        BERSERKER(
+                6,
+                "screen.playerinfo.job.berserker",
+                ChatFormatting.DARK_RED,
+                true
+        ),
+
         DRUID(
                 456,
                 "screen.playerinfo.job.druid",
@@ -2305,35 +2331,41 @@ public final class PlayerInfoScreen extends Screen {
         private final int id;
         private final String translationKey;
         private final ChatFormatting textColor;
+        private final boolean bold;
 
         Job(
                 int id,
                 String translationKey,
                 ChatFormatting textColor
         ) {
+            this(id, translationKey, textColor, false);
+        }
+
+        Job(
+                int id,
+                String translationKey,
+                ChatFormatting textColor,
+                boolean bold
+        ) {
             this.id = id;
             this.translationKey = translationKey;
             this.textColor = textColor;
+            this.bold = bold;
         }
 
-        private String getDisplayName() {
+        private Component getDisplayName() {
             if (translationKey.isEmpty()) {
-                return "";
+                return Component.empty();
             }
 
-            return Component.translatable(
-                    translationKey
-            ).getString();
-        }
-
-        private int getTextColor() {
-            Integer rgbColor = textColor.getColor();
-
-            if (rgbColor == null) {
-                return TEXT_COLOR;
+            if (bold) {
+                return Component.translatable(translationKey).withStyle(
+                        textColor,
+                        ChatFormatting.BOLD
+                );
             }
 
-            return 0xFF000000 | rgbColor;
+            return Component.translatable(translationKey).withStyle(textColor);
         }
 
         private static Job fromId(int id) {

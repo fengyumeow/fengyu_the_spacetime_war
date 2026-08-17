@@ -37,6 +37,18 @@ public final class RequestPlayerInfoC2SPacket {
             "total_damage_absorbed";
     private static final String AMAZING_FENGYU_OBJECTIVE =
             "amazing_fengyu";
+    private static final String BALROG_HUGE_ENERGY_OBJECTIVE =
+            "balrog_huge_energy";
+    private static final String VINES_HIT_COUNT_OBJECTIVE =
+            "weapon_VinesHitCount";
+    private static final String IRON_TITLE_ONE_OBJECTIVE =
+            "iron_chenghao1";
+    private static final String RANGER_FIFTY_KILL_OBJECTIVE =
+            "ranger_50kill";
+    private static final String VANILLA_NETHER_ENCHANTING_OBJECTIVE =
+            "vanilla_nether_enchanting";
+    private static final String ADMIN_SERVER_OBJECTIVE =
+            "admin_server";
 
     /*
      * 以后需要显示更多计分板时，
@@ -314,6 +326,48 @@ public final class RequestPlayerInfoC2SPacket {
                         playerName,
                         scoreboard.getObjective(
                                 AMAZING_FENGYU_OBJECTIVE
+                        )
+                ),
+                readScore(
+                        scoreboard,
+                        playerName,
+                        scoreboard.getObjective(
+                                BALROG_HUGE_ENERGY_OBJECTIVE
+                        )
+                ),
+                readScore(
+                        scoreboard,
+                        playerName,
+                        scoreboard.getObjective(
+                                VINES_HIT_COUNT_OBJECTIVE
+                        )
+                ),
+                readScore(
+                        scoreboard,
+                        playerName,
+                        scoreboard.getObjective(
+                                IRON_TITLE_ONE_OBJECTIVE
+                        )
+                ),
+                readScore(
+                        scoreboard,
+                        playerName,
+                        scoreboard.getObjective(
+                                RANGER_FIFTY_KILL_OBJECTIVE
+                        )
+                ),
+                readScore(
+                        scoreboard,
+                        playerName,
+                        scoreboard.getObjective(
+                                VANILLA_NETHER_ENCHANTING_OBJECTIVE
+                        )
+                ),
+                readScore(
+                        scoreboard,
+                        playerName,
+                        scoreboard.getObjective(
+                                ADMIN_SERVER_OBJECTIVE
                         )
                 )
         );
