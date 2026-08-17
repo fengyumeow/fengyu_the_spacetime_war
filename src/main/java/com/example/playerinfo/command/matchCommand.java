@@ -4,7 +4,6 @@ import com.example.playerinfo.data.HistoryData;
 import com.example.playerinfo.data.HistoryFileManager;
 import com.example.playerinfo.data.PlayerData;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -17,12 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 public class matchCommand {
-
-        private static final String JOB_OBJECTIVE_NAME = "history_job_id";
+    private static final String GAME_INFO = "game_info";
+    private static final String JOB_OBJECTIVE_NAME = "history_job_id";
     private static final String TEAM_OBJECTIVE_NAME = "history_team";
     private static final String KILL_OBJECTIVE = "history_kill_count";
     private static final String DEATH_OBJECTIVE = "history_death_count";
@@ -33,13 +31,14 @@ public class matchCommand {
         dispatcher.register(literal("match")
                 .then(literal("history")
                         .then(literal("save")
-                                .then(argument("matchId", IntegerArgumentType.integer())
-                                        .executes(context ->
-                                                saveMatchHistory(context.getSource(), IntegerArgumentType.getInteger(context, "matchId")))))));
+                                .executes(context ->
+                                        saveMatchHistory(context.getSource())))));
     }
 
-    public static int saveMatchHistory(CommandSourceStack source, int matchId) {
+    public static int saveMatchHistory(CommandSourceStack source) {
         MinecraftServer server = source.getServer();
+        Scoreboard scoreboard = server.getScoreboard();
+        int matchId = readScore(scoreboard, "match_id", GAME_INFO);
 
         // 读取当前计分板数据并构建 HistoryData
         HistoryData historyData = readCurrentMatchData(server, matchId);
