@@ -5,6 +5,8 @@ package com.example.playerinfo.client;
 
 import com.example.playerinfo.data.HistoryData;
 import com.example.playerinfo.data.PlayerData;
+import com.example.playerinfo.enums.Job;
+import com.example.playerinfo.enums.SortKey;
 import com.example.playerinfo.network.*;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
@@ -53,20 +55,19 @@ public final class PlayerInfoScreen extends Screen {
     private static final int BORDER_COLOR = 0x90FFFFFF;
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int HEADER_TEXT_COLOR = 0xFFFFD700;
+    private static final int LOCAL_PLAYER_ROW_COLOR = 0x5030A0A0; // 半透明蓝绿色，用于高亮自己
+    private static final int LOCAL_PLAYER_TEXT_COLOR = 0xFFFFFF00; // 文字颜色（黄色）
 
     /*
      * 使用静态字段保存设置，使界面关闭后再次打开时
      * 仍然保持上一次选择的排序方式。
      */
-    private static SortMode selectedSortMode = SortMode.KILLS;
-    private static boolean descendingOrder = true;
-    private static boolean prioritizeSameTeam = false;
-    private static Page selectedPage = Page.COMBAT;
+    private static SortKey combatSortKey = SortKey.KILLS;
+    private static boolean combatSortDescending = true;
+    private static SortKey historySortKey = SortKey.KILLS;
+    private static boolean historySortDescending = true;
 
-    private static SortMode selectedHistorySortMode =
-            SortMode.KILLS;
-    private static boolean historyDescendingOrder = true;
-    private static boolean historyPrioritizeSameTeam = false;
+    private static Page selectedPage = Page.COMBAT;
 
     private final PersonalStats personalStats;
     private final List<String> objectiveNames;
@@ -76,10 +77,8 @@ public final class PlayerInfoScreen extends Screen {
             new ArrayList<>();
     private final List<PlayerInfoEntry> sortedHistoryPlayers =
             new ArrayList<>();
+    private String localPlayerName = "";
 
-    private int sortModeButtonX;
-    private int sortDirectionButtonX;
-    private int teamPriorityButtonX;
     private int pageSwitchButtonX;
     private int buttonsY;
     private int historyPageButtonsX;
@@ -146,6 +145,10 @@ public final class PlayerInfoScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        // 缓存本地玩家名
+        if (minecraft != null && minecraft.player != null) {
+            localPlayerName = minecraft.player.getScoreboardName();
+        }
 
         refreshSortedPlayers();
         refreshSortedHistoryPlayers();
@@ -174,18 +177,6 @@ public final class PlayerInfoScreen extends Screen {
                         - PADDING - BUTTON_WIDTH;
         historyPageButtonsY =
                 panelY + PADDING + TITLE_HEIGHT;
-
-        int totalButtonWidth =
-                BUTTON_WIDTH * 3 + BUTTON_GAP * 2;
-
-        sortModeButtonX =
-                panelX + panelWidth - PADDING - totalButtonWidth;
-
-        sortDirectionButtonX =
-                sortModeButtonX + BUTTON_WIDTH + BUTTON_GAP;
-
-        teamPriorityButtonX =
-                sortDirectionButtonX + BUTTON_WIDTH + BUTTON_GAP;
 
         // 位于面板标题区域内，避免与边框或表头重叠。
         buttonsY = panelY + PADDING + 3;
@@ -366,27 +357,37 @@ public final class PlayerInfoScreen extends Screen {
         currentX += jobWidth;
 
         // 队伍
-        drawHeader(
+        drawSortableHeader(
                 graphics,
-                Component.translatable(
-                        "screen.playerinfo.team"
-                ),
+                Component.translatable("screen.playerinfo.team"),
                 currentX,
                 headerY,
-                teamWidth
-        );
+                teamWidth,
+                SortKey.TEAM,
+                false,
+                mouseX,
+                mouseY);
         currentX += teamWidth;
 
         // 得分
         for (String objectiveName : objectiveNames) {
-            drawHeader(
+            SortKey key = switch (objectiveName) {
+//                case "kill_count" -> SortKey.KILLS;   // 默认为 KILLS
+                case "death_count" -> SortKey.DEATHS;
+                case "damage_dealt" -> SortKey.DAMAGE;
+                case "damage_absorbed" -> SortKey.ABSORBED;
+                default -> SortKey.KILLS;
+            };
+            drawSortableHeader(
                     graphics,
                     getObjectiveDisplayName(objectiveName),
                     currentX,
                     headerY,
-                    scoreWidth
-            );
-
+                    scoreWidth,
+                    key,
+                    false,
+                    mouseX,
+                    mouseY);
             currentX += scoreWidth;
         }
 
@@ -409,9 +410,14 @@ public final class PlayerInfoScreen extends Screen {
 
             int rowY = rowsY + visibleIndex * ROW_HEIGHT;
 
-            int rowColor = visibleIndex % 2 == 0
-                    ? ROW_COLOR_1
-                    : ROW_COLOR_2;
+            // 渲染行背景
+            boolean isLocal = isLocalPlayer(entry.playerName());
+            int rowColor;
+            if (isLocal) {
+                rowColor = LOCAL_PLAYER_ROW_COLOR;
+            } else {
+                rowColor = visibleIndex % 2 == 0 ? ROW_COLOR_1 : ROW_COLOR_2;
+            }
 
             graphics.fill(tableX,
                     rowY,
@@ -422,12 +428,16 @@ public final class PlayerInfoScreen extends Screen {
             currentX = tableX;
 
             // 玩家名称
+            int nameColor = isLocalPlayer(entry.playerName())
+                    ? LOCAL_PLAYER_TEXT_COLOR
+                    : TEXT_COLOR;
             drawLeftCell(
                     graphics,
                     entry.playerName(),
                     currentX,
                     rowY,
-                    nameWidth
+                    nameWidth,
+                    nameColor
             );
             // Ping
             int ping = ClientPingCache.getPing(entry.playerName());
@@ -562,7 +572,9 @@ public final class PlayerInfoScreen extends Screen {
                 panelX,
                 historyPanelY,
                 panelWidth,
-                panelHeight
+                panelHeight,
+                mouseX,
+                mouseY
         );
 
         graphics.disableScissor();
@@ -994,7 +1006,9 @@ public final class PlayerInfoScreen extends Screen {
             int panelX,
             int panelY,
             int panelWidth,
-            int panelHeight
+            int panelHeight,
+            int mouseX,
+            int mouseY
     ) {
         graphics.fill(
                 panelX,
@@ -1144,26 +1158,38 @@ public final class PlayerInfoScreen extends Screen {
         );
         currentX += jobWidth;
 
-        drawHeader(
+        // 表头按队伍排序按钮
+        drawSortableHeader(
                 graphics,
-                Component.translatable(
-                        "screen.playerinfo.team"
-                ),
+                Component.translatable("screen.playerinfo.team"),
                 currentX,
                 headerY,
-                teamWidth
-        );
+                teamWidth,
+                SortKey.TEAM,
+                true,
+                mouseX,
+                mouseY);
         currentX += teamWidth;
 
-        for (String objectiveName :
-                HISTORY_OBJECTIVE_NAMES) {
-            drawHeader(
+        // 表头按分数排序按钮
+        for (String objectiveName : HISTORY_OBJECTIVE_NAMES) {
+            SortKey key = switch (objectiveName) {
+//                case "kill_count" -> SortKey.KILLS;   // 默认为 KILLS
+                case "death_count" -> SortKey.DEATHS;
+                case "damage_dealt" -> SortKey.DAMAGE;
+                case "damage_absorbed" -> SortKey.ABSORBED;
+                default -> SortKey.KILLS;
+            };
+            drawSortableHeader(
                     graphics,
                     getObjectiveDisplayName(objectiveName),
                     currentX,
                     headerY,
-                    scoreWidth
-            );
+                    scoreWidth,
+                    key,
+                    true,
+                    mouseX,
+                    mouseY);
             currentX += scoreWidth;
         }
 
@@ -1190,15 +1216,10 @@ public final class PlayerInfoScreen extends Screen {
             int rowY = rowsY
                     + visibleIndex * ROW_HEIGHT;
 
-            graphics.fill(
-                    tableX,
-                    rowY,
-                    tableX + tableWidth,
-                    rowY + ROW_HEIGHT,
-                    visibleIndex % 2 == 0
-                            ? ROW_COLOR_1
-                            : ROW_COLOR_2
-            );
+            // 渲染行背景
+            boolean isLocal = isLocalPlayer(entry.playerName());
+            int rowColor = isLocal ? LOCAL_PLAYER_ROW_COLOR : (visibleIndex % 2 == 0 ? ROW_COLOR_1 : ROW_COLOR_2);
+            graphics.fill(tableX, rowY, tableX + tableWidth, rowY + ROW_HEIGHT, rowColor);
 
             currentX = tableX;
             drawLeftCell(
@@ -1355,170 +1376,86 @@ public final class PlayerInfoScreen extends Screen {
     private void refreshSortedPlayers() {
         sortedPlayers.clear();
         sortedPlayers.addAll(players);
-
-        Comparator<PlayerInfoEntry> scoreComparator =
-                Comparator.comparingInt(
-                        this::getSelectedScore
-                );
-
-        if (descendingOrder) {
-            scoreComparator =
-                    scoreComparator.reversed();
-        }
-
-        Comparator<PlayerInfoEntry> comparator =
-                scoreComparator.thenComparing(
-                        PlayerInfoEntry::playerName,
-                        String.CASE_INSENSITIVE_ORDER
-                );
-
-        String localTeamName =
-                findLocalTeamName();
-
-        if (prioritizeSameTeam &&
-                !localTeamName.isBlank()) {
-
-            Comparator<PlayerInfoEntry> teamComparator =
-                    Comparator.comparingInt(entry ->
-                            localTeamName.equals(
-                                    entry.teamName()
-                            ) ? 0 : 1
-                    );
-
-            comparator =
-                    teamComparator.thenComparing(
-                            comparator
-                    );
-        }
-
-        sortedPlayers.sort(comparator);
+        sortedPlayers.sort(getComparator(combatSortKey, combatSortDescending));
         scrollOffset = 0;
-    }
-
-    private int getSelectedScore(
-            PlayerInfoEntry entry
-    ) {
-        int scoreIndex = objectiveNames.indexOf(
-                selectedSortMode.objectiveName
-        );
-
-        if (scoreIndex < 0 ||
-                scoreIndex >= entry.scores().size()) {
-            return 0;
-        }
-
-        return entry.scores().get(scoreIndex);
     }
 
     private void refreshSortedHistoryPlayers() {
         sortedHistoryPlayers.clear();
-
-        if (selectedHistoryPageIndex >= 0
-                && selectedHistoryPageIndex
-                < historyPages.size()) {
-            sortedHistoryPlayers.addAll(
-                    historyPages.get(
-                            selectedHistoryPageIndex
-                    ).players()
-            );
+        if (selectedHistoryPageIndex >= 0 && selectedHistoryPageIndex < historyPages.size()) {
+            sortedHistoryPlayers.addAll(historyPages.get(selectedHistoryPageIndex).players());
         }
-
-        Comparator<PlayerInfoEntry> scoreComparator =
-                Comparator.comparingInt(
-                        this::getHistorySelectedScore
-                );
-
-        if (historyDescendingOrder) {
-            scoreComparator = scoreComparator.reversed();
-        }
-
-        Comparator<PlayerInfoEntry> comparator =
-                scoreComparator.thenComparing(
-                        PlayerInfoEntry::playerName,
-                        String.CASE_INSENSITIVE_ORDER
-                );
-
-        String localTeamName =
-                findLocalHistoryTeamName();
-
-        if (historyPrioritizeSameTeam
-                && !localTeamName.isBlank()) {
-            Comparator<PlayerInfoEntry> teamComparator =
-                    Comparator.comparingInt(entry ->
-                            localTeamName.equals(
-                                    entry.teamName()
-                            ) ? 0 : 1
-                    );
-            comparator = teamComparator.thenComparing(
-                    comparator
-            );
-        }
-
-        sortedHistoryPlayers.sort(comparator);
+        sortedHistoryPlayers.sort(getComparator(historySortKey, historySortDescending));
         historyScrollOffset = 0;
     }
 
-    private String findLocalHistoryTeamName() {
-        if (minecraft == null
-                || minecraft.player == null
-                || selectedHistoryPageIndex < 0
-                || selectedHistoryPageIndex
-                >= historyPages.size()) {
-            return "";
+    private Comparator<PlayerInfoEntry> getComparator(SortKey key, boolean descending) {
+        Comparator<PlayerInfoEntry> comparator;
+        switch (key) {
+            case TEAM -> comparator = Comparator.comparing(
+                    PlayerInfoEntry::teamName,
+                    String.CASE_INSENSITIVE_ORDER
+            );
+            case KILLS -> comparator = Comparator.comparingInt(entry -> getScore(entry, 0));
+            case DEATHS -> comparator = Comparator.comparingInt(entry -> getScore(entry, 1));
+            case DAMAGE -> comparator = Comparator.comparingInt(entry -> getScore(entry, 2));
+            case ABSORBED -> comparator = Comparator.comparingInt(entry -> getScore(entry, 3));
+            default -> comparator = Comparator.comparing(PlayerInfoEntry::playerName);
         }
-
-        String localPlayerName =
-                minecraft.player.getScoreboardName();
-
-        for (PlayerInfoEntry entry :
-                historyPages.get(
-                        selectedHistoryPageIndex
-                ).players()) {
-            if (entry.playerName().equals(
-                    localPlayerName
-            )) {
-                return entry.teamName();
-            }
-        }
-
-        return "";
+        if (descending) comparator = comparator.reversed();
+        // 次级排序：名字
+        comparator = comparator.thenComparing(PlayerInfoEntry::playerName, String.CASE_INSENSITIVE_ORDER);
+        return comparator;
     }
 
-    private int getHistorySelectedScore(
-            PlayerInfoEntry entry
-    ) {
-        int scoreIndex =
-                HISTORY_OBJECTIVE_NAMES.indexOf(
-                        selectedHistorySortMode
-                                .objectiveName
-                );
-
-        if (scoreIndex < 0
-                || scoreIndex >= entry.scores().size()) {
-            return 0;
-        }
-
-        return entry.scores().get(scoreIndex);
+    private int getScore(PlayerInfoEntry entry, int index) {
+        return index < entry.scores().size() ? entry.scores().get(index) : 0;
     }
 
-    private String findLocalTeamName() {
-        if (minecraft == null ||
-                minecraft.player == null) {
-            return "";
+    private void drawSortableHeader(GuiGraphics graphics, Component text, int x, int y, int cellWidth,
+                                    SortKey key, boolean isHistory, int mouseX, int mouseY) {
+        SortKey activeKey = isHistory ? historySortKey : combatSortKey;
+        boolean descending = isHistory ? historySortDescending : combatSortDescending;
+        boolean active = key == activeKey;
+
+        // 悬停检测
+        boolean hovered = mouseX >= x && mouseX < x + cellWidth
+                && mouseY >= y && mouseY < y + HEADER_HEIGHT;
+
+        // 背景：悬停时稍微变亮，激活时使用更明显的背景
+        int bgColor;
+        if (hovered) {
+            bgColor = 0xFF505050;
+        } else if (active) {
+            bgColor = 0xFF404040;
+        } else {
+            bgColor = 0xFF303030; // 与表头背景 HEADER_COLOR 类似
+        }
+        graphics.fill(x, y, x + cellWidth, y + HEADER_HEIGHT, bgColor);
+        // 边框：激活列金色，非激活列灰色，悬停时更亮
+        int borderColor = active ? HEADER_TEXT_COLOR : (hovered ? 0xFFC0C0C0 : 0xFF808080);
+        // 绘制四周边框（1像素）
+        graphics.fill(x, y, x + cellWidth, y + 1, borderColor);
+        graphics.fill(x, y + HEADER_HEIGHT - 1, x + cellWidth, y + HEADER_HEIGHT, borderColor);
+        graphics.fill(x, y, x + 1, y + HEADER_HEIGHT, borderColor);
+        graphics.fill(x + cellWidth - 1, y, x + cellWidth, y + HEADER_HEIGHT, borderColor);
+
+        // 文本：激活列显示箭头
+        String display = text.getString();
+        if (key == activeKey) {
+            display += descending ? " ↓" : " ↑";
         }
 
-        String localPlayerName =
-                minecraft.player.getScoreboardName();
+        int textColor = active ? HEADER_TEXT_COLOR : TEXT_COLOR;
+        String shortened = font.plainSubstrByWidth(display, Math.max(0, cellWidth - 6));
 
-        for (PlayerInfoEntry entry : players) {
-            if (entry.playerName().equals(
-                    localPlayerName
-            )) {
-                return entry.teamName();
-            }
-        }
-
-        return "";
+        graphics.drawCenteredString(
+                font,
+                shortened,
+                x + cellWidth / 2,
+                y + (HEADER_HEIGHT - font.lineHeight) / 2,
+                textColor
+        );
     }
 
     private void drawPageControls(
@@ -1541,22 +1478,12 @@ public final class PlayerInfoScreen extends Screen {
                 pageButtonHovered
         );
 
-        if (!pageTransitionActive
-                && (currentPage == Page.COMBAT
-                || currentPage == Page.HISTORY)) {
-            drawControlButtons(
+        if (!pageTransitionActive && currentPage == Page.HISTORY) {
+            drawHistoryPageButtons(
                     graphics,
                     mouseX,
                     mouseY
             );
-
-            if (currentPage == Page.HISTORY) {
-                drawHistoryPageButtons(
-                        graphics,
-                        mouseX,
-                        mouseY
-                );
-            }
         }
 
         if (pageButtonHovered) {
@@ -1571,101 +1498,6 @@ public final class PlayerInfoScreen extends Screen {
                                     currentPage.next().titleKey
                             )
                     ),
-                    mouseX,
-                    mouseY
-            );
-        }
-    }
-
-    private void drawControlButtons(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY
-    ) {
-        boolean historyPage =
-                currentPage == Page.HISTORY;
-        SortMode activeSortMode = historyPage
-                ? selectedHistorySortMode
-                : selectedSortMode;
-        boolean activeDescending = historyPage
-                ? historyDescendingOrder
-                : descendingOrder;
-        boolean activeTeamPriority = historyPage
-                ? historyPrioritizeSameTeam
-                : prioritizeSameTeam;
-
-        drawControlButton(
-                graphics,
-                sortModeButtonX,
-                buttonsY,
-                activeSortMode.icon,
-                isInsideButton(
-                        mouseX,
-                        mouseY,
-                        sortModeButtonX,
-                        buttonsY
-                )
-        );
-
-        drawControlButton(
-                graphics,
-                sortDirectionButtonX,
-                buttonsY,
-                activeDescending ? "↓" : "↑",
-                isInsideButton(
-                        mouseX,
-                        mouseY,
-                        sortDirectionButtonX,
-                        buttonsY
-                )
-        );
-
-        drawControlButton(
-                graphics,
-                teamPriorityButtonX,
-                buttonsY,
-                activeTeamPriority ? "⚑" : "⚐",
-                isInsideButton(
-                        mouseX,
-                        mouseY,
-                        teamPriorityButtonX,
-                        buttonsY
-                )
-        );
-
-        String tooltipText = null;
-
-        if (isInsideButton(
-                mouseX,
-                mouseY,
-                sortModeButtonX,
-                buttonsY
-        )) {
-            tooltipText = activeSortMode.displayName;
-        } else if (isInsideButton(
-                mouseX,
-                mouseY,
-                sortDirectionButtonX,
-                buttonsY
-        )) {
-            tooltipText = activeDescending
-                    ? "从高到低"
-                    : "从低到高";
-        } else if (isInsideButton(
-                mouseX,
-                mouseY,
-                teamPriorityButtonX,
-                buttonsY
-        )) {
-            tooltipText = activeTeamPriority
-                    ? "优先同队"
-                    : "默认排序";
-        }
-
-        if (tooltipText != null) {
-            graphics.renderTooltip(
-                    font,
-                    Component.literal(tooltipText),
                     mouseX,
                     mouseY
             );
@@ -1819,6 +1651,10 @@ public final class PlayerInfoScreen extends Screen {
     }
 
     private void drawLeftCell(GuiGraphics graphics, String text, int x, int y, int cellWidth) {
+        drawLeftCell(graphics, text, x, y, cellWidth, TEXT_COLOR);
+    }
+
+    private void drawLeftCell(GuiGraphics graphics, String text, int x, int y, int cellWidth, int color) {
         String shortened = font.plainSubstrByWidth(text, cellWidth - 8);
 
         graphics.drawString(
@@ -1826,7 +1662,7 @@ public final class PlayerInfoScreen extends Screen {
                 shortened,
                 x + 4,
                 y + (ROW_HEIGHT - font.lineHeight) / 2,
-                TEXT_COLOR,
+                color,
                 false
         );
     }
@@ -1945,18 +1781,9 @@ public final class PlayerInfoScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(
-            double mouseX,
-            double mouseY,
-            int mouseButton
-    ) {
+    public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (mouseButton == 0) {
-            if (isInsideButton(
-                    mouseX,
-                    mouseY,
-                    pageSwitchButtonX,
-                    buttonsY
-            )) {
+            if (isInsideButton(mouseX, mouseY, pageSwitchButtonX, buttonsY)) {
                 startPageTransition();
                 return true;
             }
@@ -2017,71 +1844,81 @@ public final class PlayerInfoScreen extends Screen {
                 }
             }
 
-            if (isInsideButton(
-                    mouseX,
-                    mouseY,
-                    sortModeButtonX,
-                    buttonsY
-            )) {
-                playButtonClickSound();
-
-                if (currentPage == Page.HISTORY) {
-                    selectedHistorySortMode =
-                            selectedHistorySortMode.next();
-                    refreshSortedHistoryPlayers();
-                } else {
-                    selectedSortMode =
-                            selectedSortMode.next();
-                    refreshSortedPlayers();
-                }
-                return true;
+            if (currentPage == Page.HISTORY && historyPages.isEmpty()) {
+                return super.mouseClicked(mouseX, mouseY, mouseButton);
             }
+            // 排序按钮
+            if (currentPage == Page.COMBAT || currentPage == Page.HISTORY) {
+                boolean isHistory = currentPage == Page.HISTORY;
+                // 获取表头区域参数（需与渲染时一致）
+                int panelWidth = calculatePanelWidth();
+                int panelHeight = calculatePanelHeight();
+                int panelX = (width - panelWidth) / 2;
+                int panelY = (height - panelHeight) / 2;
+                int tableX = panelX + PADDING;
+                int tableWidth = panelWidth - PADDING * 2 - (isHistory ? BUTTON_WIDTH + BUTTON_GAP : 0);
+                int headerY = panelY + PADDING + TITLE_HEIGHT;
 
-            if (isInsideButton(
-                    mouseX,
-                    mouseY,
-                    sortDirectionButtonX,
-                    buttonsY
-            )) {
-                playButtonClickSound();
+                if (mouseY >= headerY && mouseY < headerY + HEADER_HEIGHT) {
+                    int nameWidth = Math.max(1, tableWidth * 22 / 100);
+                    int jobWidth = Math.max(1, tableWidth * 14 / 100);
+                    int teamWidth = Math.max(1, tableWidth * 14 / 100);
+                    int scoreColumnCount = isHistory ? HISTORY_OBJECTIVE_NAMES.size() : Math.max(1, objectiveNames.size());
+                    int scoreWidth = Math.max(1, (tableWidth - nameWidth - jobWidth - teamWidth) / scoreColumnCount);
 
-                if (currentPage == Page.HISTORY) {
-                    historyDescendingOrder =
-                            !historyDescendingOrder;
-                    refreshSortedHistoryPlayers();
-                } else {
-                    descendingOrder = !descendingOrder;
-                    refreshSortedPlayers();
+                    int currentX = tableX + nameWidth + jobWidth; // 跳过名字和职业
+                    // 检查队伍列
+                    if (mouseX >= currentX && mouseX < currentX + teamWidth) {
+                        handleSortClick(SortKey.TEAM, isHistory);
+                        return true;
+                    }
+                    currentX += teamWidth;
+                    // 检查分数列
+                    List<String> objectives = isHistory ? HISTORY_OBJECTIVE_NAMES : objectiveNames;
+                    for (String objective : objectives) {
+                        if (mouseX >= currentX && mouseX < currentX + scoreWidth) {
+                            SortKey key = switch (objective) {
+//                                case "kill_count" -> SortKey.KILLS;   // 默认为 KILLS
+                                case "death_count" -> SortKey.DEATHS;
+                                case "damage_dealt" -> SortKey.DAMAGE;
+                                case "damage_absorbed" -> SortKey.ABSORBED;
+                                default -> SortKey.KILLS;
+                            };
+                            handleSortClick(key, isHistory);
+                            return true;
+                        }
+                        currentX += scoreWidth;
+                    }
                 }
-                return true;
-            }
-
-            if (isInsideButton(
-                    mouseX,
-                    mouseY,
-                    teamPriorityButtonX,
-                    buttonsY
-            )) {
-                playButtonClickSound();
-
-                if (currentPage == Page.HISTORY) {
-                    historyPrioritizeSameTeam =
-                            !historyPrioritizeSameTeam;
-                    refreshSortedHistoryPlayers();
-                } else {
-                    prioritizeSameTeam =
-                            !prioritizeSameTeam;
-                    refreshSortedPlayers();
-                }
-                return true;
             }
         }
 
-        return super.mouseClicked(
-                mouseX,
-                mouseY,
-                mouseButton
-        );
+        return super.mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    private void handleSortClick(SortKey key, boolean isHistory) {
+        SortKey activeKey = isHistory ? historySortKey : combatSortKey;
+        if (key == activeKey) {
+            // 切换方向
+            if (isHistory) {
+                historySortDescending = !historySortDescending;
+            } else {
+                combatSortDescending = !combatSortDescending;
+            }
+        } else {
+            // 切换排序列，默认降序
+            if (isHistory) {
+                historySortKey = key;
+                historySortDescending = true;
+            } else {
+                combatSortKey = key;
+                combatSortDescending = true;
+            }
+        }
+        // 刷新排序
+        if (isHistory) refreshSortedHistoryPlayers();
+        else refreshSortedPlayers();
+        playButtonClickSound();
     }
 
     @Override
@@ -2188,6 +2025,10 @@ public final class PlayerInfoScreen extends Screen {
         ClientHistoryManager.removeResponseListener(this::onHistoryResponse);
     }
 
+    private boolean isLocalPlayer(String playerName) {
+        return playerName.equals(localPlayerName);
+    }
+
     private enum Page {
         COMBAT(
                 0,
@@ -2230,152 +2071,4 @@ public final class PlayerInfoScreen extends Screen {
         }
     }
 
-    private enum SortMode {
-        KILLS(
-                "kill_count",
-                "击杀排序",
-                "⚔"
-        ),
-
-        DEATHS(
-                "death_count",
-                "死亡排序",
-                "☠"
-        ),
-
-        DAMAGE(
-                "damage_dealt",
-                "伤害排序",
-                "✦"
-        ),
-
-        ABSORBED(
-                "damage_absorbed",
-                "承伤排序",
-                "◆"
-        );
-
-        private final String objectiveName;
-        private final String displayName;
-        private final String icon;
-
-        SortMode(
-                String objectiveName,
-                String displayName,
-                String icon
-        ) {
-            this.objectiveName = objectiveName;
-            this.displayName = displayName;
-            this.icon = icon;
-        }
-
-        private SortMode next() {
-            SortMode[] modes = values();
-
-            return modes[
-                    (ordinal() + 1) % modes.length
-                    ];
-        }
-    }
-
-    private enum Job {
-        UNKNOWN(
-                0,
-                "",
-                ChatFormatting.WHITE
-        ),
-
-        WARRIOR(
-                1,
-                "screen.playerinfo.job.warrior",
-                ChatFormatting.DARK_BLUE
-        ),
-
-        RANGER(
-                2,
-                "screen.playerinfo.job.ranger",
-                ChatFormatting.DARK_GREEN
-        ),
-
-        CRUSADER(
-                3,
-                "screen.playerinfo.job.crusader",
-                ChatFormatting.LIGHT_PURPLE
-        ),
-
-        IRON_TOWER_GUARD(
-                5,
-                "screen.playerinfo.job.iron_tower_guard",
-                ChatFormatting.GRAY
-        ),
-
-        FLAME_DEMON(
-                4,
-                "screen.playerinfo.job.flame_demon",
-                ChatFormatting.RED
-        ),
-
-        BERSERKER(
-                6,
-                "screen.playerinfo.job.berserker",
-                ChatFormatting.DARK_RED,
-                true
-        ),
-
-        DRUID(
-                456,
-                "screen.playerinfo.job.druid",
-                ChatFormatting.GREEN
-        );
-
-        private final int id;
-        private final String translationKey;
-        private final ChatFormatting textColor;
-        private final boolean bold;
-
-        Job(
-                int id,
-                String translationKey,
-                ChatFormatting textColor
-        ) {
-            this(id, translationKey, textColor, false);
-        }
-
-        Job(
-                int id,
-                String translationKey,
-                ChatFormatting textColor,
-                boolean bold
-        ) {
-            this.id = id;
-            this.translationKey = translationKey;
-            this.textColor = textColor;
-            this.bold = bold;
-        }
-
-        private Component getDisplayName() {
-            if (translationKey.isEmpty()) {
-                return Component.empty();
-            }
-
-            if (bold) {
-                return Component.translatable(translationKey).withStyle(
-                        textColor,
-                        ChatFormatting.BOLD
-                );
-            }
-
-            return Component.translatable(translationKey).withStyle(textColor);
-        }
-
-        private static Job fromId(int id) {
-            for (Job job : values()) {
-                if (job.id == id) {
-                    return job;
-                }
-            }
-
-            return UNKNOWN;
-        }
-    }
 }
