@@ -14,15 +14,15 @@ import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public final class PlayerInfoScreen extends Screen {
 
@@ -56,7 +56,11 @@ public final class PlayerInfoScreen extends Screen {
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int HEADER_TEXT_COLOR = 0xFFFFD700;
     private static final int LOCAL_PLAYER_ROW_COLOR = 0x5030A0A0; // 半透明蓝绿色，用于高亮自己
-    private static final int LOCAL_PLAYER_TEXT_COLOR = 0xFFFFFF00; // 文字颜色（黄色）
+    private static final int LOCAL_PLAYER_NAME_COLOR = 0xFFFFFF00; // 文字颜色（黄色）
+
+    private static final int AVATAR_SIZE = 16;          // 头像大小（可根据行高调整）
+    private static final int AVATAR_TEXT_GAP = 4;       // 头像与文本间距
+    private final Map<String, ResourceLocation> skinCache = new HashMap<>();
 
     /*
      * 使用静态字段保存设置，使界面关闭后再次打开时
@@ -150,6 +154,7 @@ public final class PlayerInfoScreen extends Screen {
             localPlayerName = minecraft.player.getScoreboardName();
         }
 
+        cachePlayerSkins();
         refreshSortedPlayers();
         refreshSortedHistoryPlayers();
 
@@ -428,17 +433,7 @@ public final class PlayerInfoScreen extends Screen {
             currentX = tableX;
 
             // 玩家名称
-            int nameColor = isLocalPlayer(entry.playerName())
-                    ? LOCAL_PLAYER_TEXT_COLOR
-                    : TEXT_COLOR;
-            drawLeftCell(
-                    graphics,
-                    entry.playerName(),
-                    currentX,
-                    rowY,
-                    nameWidth,
-                    nameColor
-            );
+            drawPlayerNameCell(graphics, entry.playerName(), currentX, rowY, nameWidth);
             // Ping
             int ping = ClientPingCache.getPing(entry.playerName());
             int pingColor = PingColors.getColor(ping);
@@ -2027,6 +2022,34 @@ public final class PlayerInfoScreen extends Screen {
 
     private boolean isLocalPlayer(String playerName) {
         return playerName.equals(localPlayerName);
+    }
+
+    private void cachePlayerSkins() {
+        if (minecraft == null || minecraft.getConnection() == null) return;
+        for (PlayerInfo info : minecraft.getConnection().getOnlinePlayers()) {
+            String name = info.getProfile().getName();
+            skinCache.put(name, info.getSkinLocation());
+        }
+    }
+
+    private void drawPlayerNameCell(GuiGraphics graphics, String playerName, int x, int y, int cellWidth) {
+        ResourceLocation skin = skinCache.get(playerName);
+        int avatarX = x + 2;
+        int avatarY = y + (ROW_HEIGHT - AVATAR_SIZE) / 2;
+
+        if (skin != null) {
+            PlayerFaceRenderer.draw(graphics, skin, avatarX, avatarY, AVATAR_SIZE);
+            RenderSystem.enableBlend(); // 恢复混合状态
+        } else {
+            // 可选：绘制灰色占位方块
+            graphics.fill(avatarX, avatarY, avatarX + AVATAR_SIZE, avatarY + AVATAR_SIZE, 0xFF808080);
+        }
+
+        int textX = avatarX + AVATAR_SIZE + AVATAR_TEXT_GAP;
+        int textWidth = Math.max(0, cellWidth - (AVATAR_SIZE + AVATAR_TEXT_GAP + 8));
+        String shortened = font.plainSubstrByWidth(playerName, textWidth);
+        int textColor = isLocalPlayer(playerName) ? LOCAL_PLAYER_NAME_COLOR : TEXT_COLOR;
+        graphics.drawString(font, shortened, textX, y + (ROW_HEIGHT - font.lineHeight) / 2, textColor, false);
     }
 
     private enum Page {
