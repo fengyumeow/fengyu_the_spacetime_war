@@ -8,13 +8,11 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.Score;
 import net.minecraft.world.scores.Scoreboard;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static net.minecraft.commands.Commands.literal;
 
@@ -61,11 +59,18 @@ public class matchCommand {
      */
     private static HistoryData readCurrentMatchData(MinecraftServer server, int matchId) {
         Scoreboard scoreboard = server.getScoreboard();
+        Set<String> participants = new HashSet<>();
+
+        // 收集所有在历史计分板中有分数的玩家
+        addScoreOwners(scoreboard, JOB_OBJECTIVE_NAME, participants);
+        addScoreOwners(scoreboard, TEAM_OBJECTIVE_NAME, participants);
+        addScoreOwners(scoreboard, KILL_OBJECTIVE, participants);
+        addScoreOwners(scoreboard, DEATH_OBJECTIVE, participants);
+        addScoreOwners(scoreboard, DAMAGE_OBJECTIVE, participants);
+        addScoreOwners(scoreboard, ABSORBED_OBJECTIVE, participants);
+
         List<PlayerData> playerDataList = new ArrayList<>();
-
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            String playerName = player.getScoreboardName();
-
+        for (String playerName : participants) {
             int jobId = readScore(scoreboard, playerName, JOB_OBJECTIVE_NAME);
             int team = readScore(scoreboard, playerName, TEAM_OBJECTIVE_NAME);
             int kills = readScore(scoreboard, playerName, KILL_OBJECTIVE);
@@ -74,27 +79,28 @@ public class matchCommand {
             int absorbed = readScore(scoreboard, playerName, ABSORBED_OBJECTIVE);
 
             List<Integer> scores = List.of(kills, deaths, damage, absorbed);
-            Integer teamColor;
-            switch (team) {
-                case 1 -> teamColor = ChatFormatting.RED.getColor();
-                case 2 -> teamColor = ChatFormatting.BLUE.getColor();
-                default -> teamColor = ChatFormatting.WHITE.getColor();
-            }
-            int intTeamColor = Objects.requireNonNullElse(teamColor, 0xFFFFFFFF);
-            playerDataList.add(new PlayerData(
-                    playerName,
-                    jobId,
-                    String.valueOf(team),
-                    intTeamColor,
-                    scores
-            ));
+            int intTeamColor = switch (team) {
+                case 1 -> ChatFormatting.RED.getColor();
+                case 2 -> ChatFormatting.BLUE.getColor();
+                default -> ChatFormatting.WHITE.getColor();
+            };
+
+            playerDataList.add(new PlayerData(playerName, jobId, String.valueOf(team), intTeamColor, scores));
         }
 
         if (playerDataList.isEmpty()) {
             return null;
         }
-
         return new HistoryData(matchId, playerDataList);
+    }
+
+    private static void addScoreOwners(Scoreboard scoreboard, String objectiveName, Set<String> owners) {
+        Objective objective = scoreboard.getObjective(objectiveName);
+        if (objective != null) {
+            for (Score score : scoreboard.getPlayerScores(objective)) {
+                owners.add(score.getOwner());
+            }
+        }
     }
 
     private static int readScore(Scoreboard scoreboard, String playerName, String objectiveName) {
