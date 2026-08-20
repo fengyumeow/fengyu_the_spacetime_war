@@ -1,4 +1,4 @@
-package com.example.playerinfo.title;
+package com.example.playerinfo.enums;
 
 import com.example.playerinfo.network.PersonalStats;
 import net.minecraft.ChatFormatting;

@@ -2,7 +2,7 @@ package com.example.playerinfo.server;
 
 import com.example.playerinfo.PlayerInfoMod;
 import com.example.playerinfo.network.PersonalStats;
-import com.example.playerinfo.title.PlayerTitle;
+import com.example.playerinfo.enums.PlayerTitle;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;

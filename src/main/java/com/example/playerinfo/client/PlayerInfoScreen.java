@@ -7,6 +7,7 @@ import com.example.playerinfo.data.HistoryData;
 import com.example.playerinfo.data.PlayerData;
 import com.example.playerinfo.enums.Job;
 import com.example.playerinfo.enums.Page;
+import com.example.playerinfo.enums.PlayerTitle;
 import com.example.playerinfo.enums.SortKey;
 import com.example.playerinfo.network.*;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -809,70 +810,63 @@ public final class PlayerInfoScreen extends Screen {
                 dividerX - PADDING - leftX
         );
 
-        int avatarSize = Math.max(
-                8,
-                Math.min(
-                        panelWidth / 4,
-                        Math.min(
-                                leftWidth - 12,
-                                contentHeight
-                                        - font.lineHeight
-                                        - 30
-                        )
-                )
-        );
+        // 渲染皮肤
+        int avatarSize = Math.max(8, Math.min(panelWidth / 4, Math.min(leftWidth - 12, contentHeight - font.lineHeight - 30)));
 
-        int avatarX =
-                leftX + (leftWidth - avatarSize) / 2;
+        int avatarX = leftX + (leftWidth - avatarSize) / 2;
         int avatarY = contentTop + 8;
 
-        graphics.fill(
-                avatarX - 2,
-                avatarY - 2,
-                avatarX + avatarSize + 2,
-                avatarY + avatarSize + 2,
-                BORDER_COLOR
-        );
-        graphics.fill(
-                avatarX,
-                avatarY,
-                avatarX + avatarSize,
-                avatarY + avatarSize,
-                0xFF202020
-        );
-
-        String playerName = "";
+        graphics.fill(avatarX - 2, avatarY - 2,
+                avatarX + avatarSize + 2, avatarY + avatarSize + 2,
+                BORDER_COLOR);
+        graphics.fill(avatarX, avatarY,
+                avatarX + avatarSize, avatarY + avatarSize,
+                0xFF202020);
 
         if (minecraft != null && minecraft.player != null) {
-            PlayerFaceRenderer.draw(
-                    graphics,
-                    minecraft.player
-                            .getSkinTextureLocation(),
-                    avatarX,
-                    avatarY,
-                    avatarSize
-            );
+            PlayerFaceRenderer.draw(graphics,
+                    minecraft.player.getSkinTextureLocation(),
+                    avatarX, avatarY, avatarSize);
+        }
+        // 获取称号和玩家名
+        Component titleComponent = ClientTitleState.getEquippedTitleComponent();
+        String playerName = minecraft != null && minecraft.player != null
+                ? minecraft.player.getScoreboardName()
+                : "";
 
-            RenderSystem.enableBlend();
+        int maxTextWidth = Math.max(0, leftWidth - 8);
+        int textY = avatarY + avatarSize + 8;
 
-            playerName = minecraft.player
-                    .getScoreboardName();
+        if (!Objects.equals(titleComponent, Component.empty())) {
+            int titleWidth = font.width(titleComponent);
+            int spaceWidth = font.width(" ");
+
+            if (titleWidth + spaceWidth > maxTextWidth) {
+                // 称号太长，截断称号并居中
+                String shortenedTitle = font.plainSubstrByWidth(titleComponent.getString(), maxTextWidth);
+                int totalWidth = font.width(shortenedTitle);
+                int drawX = leftX + (leftWidth - totalWidth) / 2;
+                graphics.drawString(font, shortenedTitle, drawX, textY, TEXT_COLOR, false);
+            } else {
+                // 称号完整，截断玩家名并组合居中
+                int availableForName = maxTextWidth - titleWidth - spaceWidth;
+                String shortenedName = font.plainSubstrByWidth(playerName, Math.max(0, availableForName));
+                int nameWidth = font.width(shortenedName);
+                int totalWidth = titleWidth + spaceWidth + nameWidth;
+                int drawX = leftX + (leftWidth - totalWidth) / 2;
+
+                graphics.drawString(font, titleComponent, drawX, textY, TEXT_COLOR, false);
+                graphics.drawString(font, shortenedName, drawX + titleWidth + spaceWidth, textY, TEXT_COLOR, false);
+            }
+        } else {
+            // 无称号，仅显示玩家名
+            String shortenedName = font.plainSubstrByWidth(playerName, maxTextWidth);
+            int totalWidth = font.width(shortenedName);
+            int drawX = leftX + (leftWidth - totalWidth) / 2;
+            graphics.drawString(font, shortenedName, drawX, textY, TEXT_COLOR, false);
         }
 
-        String shortenedPlayerName =
-                font.plainSubstrByWidth(
-                        playerName,
-                        Math.max(0, leftWidth - 8)
-                );
-
-        graphics.drawCenteredString(
-                font,
-                shortenedPlayerName,
-                leftX + leftWidth / 2,
-                avatarY + avatarSize + 8,
-                TEXT_COLOR
-        );
-
+        // 称号选择按钮
         personalTitleButtonWidth = Math.max(
                 BUTTON_WIDTH,
                 Math.min(76, leftWidth - 12)
@@ -896,105 +890,89 @@ public final class PlayerInfoScreen extends Screen {
                 panelX + panelWidth - PADDING - rightX
         );
 
-        drawPersonalStatRow(
-                graphics,
+        // 三行两列网格
+        int columns = 2;
+        int rows = 4;
+        int cellWidth = rightWidth / columns;
+        int cellHeight = contentHeight / rows;
+
+        int totalGames = personalStats.totalGames();
+        int totalWins = personalStats.totalWins();
+        int totalKills = personalStats.totalKills();
+        int totalDeaths = personalStats.totalDeaths();
+
+        String kd = totalDeaths > 0
+                ? String.format("%.2f", totalKills * 1.0 / totalDeaths)
+                : (totalKills > 0 ? String.valueOf(totalKills) : "0.00");
+        String winRate = totalGames > 0
+                ? String.format("%.1f%%", totalWins * 100.0 / totalGames)
+                : "0.0%";
+
+        // 存储统计项
+        List<String> labels = List.of(
+                "screen.playerinfo.kd",
+                "screen.playerinfo.win_rate",
                 "screen.playerinfo.total_games",
-                personalStats.totalGames(),
-                rightX,
-                rightWidth,
-                contentTop,
-                contentHeight,
-                0
-        );
-        drawPersonalStatRow(
-                graphics,
                 "screen.playerinfo.total_wins",
-                personalStats.totalWins(),
-                rightX,
-                rightWidth,
-                contentTop,
-                contentHeight,
-                1
-        );
-        drawPersonalStatRow(
-                graphics,
                 "screen.playerinfo.total_kills",
-                personalStats.totalKills(),
-                rightX,
-                rightWidth,
-                contentTop,
-                contentHeight,
-                2
-        );
-        drawPersonalStatRow(
-                graphics,
                 "screen.playerinfo.total_deaths",
-                personalStats.totalDeaths(),
-                rightX,
-                rightWidth,
-                contentTop,
-                contentHeight,
-                3
-        );
-        drawPersonalStatRow(
-                graphics,
                 "screen.playerinfo.total_damage",
-                personalStats.totalDamage(),
-                rightX,
-                rightWidth,
-                contentTop,
-                contentHeight,
-                4
+                "screen.playerinfo.total_damage_absorbed"
         );
-        drawPersonalStatRow(
-                graphics,
-                "screen.playerinfo.total_damage_absorbed",
-                personalStats.totalDamageAbsorbed(),
-                rightX,
-                rightWidth,
-                contentTop,
-                contentHeight,
-                5
+        List<String> values = List.of(
+                kd,
+                winRate,
+                String.valueOf(totalGames),
+                String.valueOf(totalWins),
+                String.valueOf(totalKills),
+                String.valueOf(totalDeaths),
+                String.valueOf(personalStats.totalDamage()),
+                String.valueOf(personalStats.totalDamageAbsorbed())
         );
+
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                boolean useLightBackground = (row % 2 == 0) != (col % 2 == 0);
+                int index = row * columns + col;
+
+                int cellX = rightX + col * cellWidth;
+                int cellY = contentTop + row * cellHeight;
+
+                drawPersonalStatCell(graphics,
+                        labels.get(index),
+                        values.get(index),
+                        cellX,
+                        cellY,
+                        cellWidth,
+                        cellHeight,
+                        useLightBackground
+                );
+            }
+        }
     }
 
-    private void drawTitleButton(
-            GuiGraphics graphics,
-            boolean hovered
-    ) {
-        int borderColor = hovered
-                ? HEADER_TEXT_COLOR
-                : 0xFFA0A0A0;
-        int backgroundColor = hovered
-                ? 0xE0606060
-                : 0xD0303030;
+    private void drawTitleButton(GuiGraphics graphics, boolean hovered) {
+        int borderColor = hovered ? HEADER_TEXT_COLOR : 0xFFA0A0A0;
+        int backgroundColor = hovered ? 0xE0606060 : 0xD0303030;
 
-        graphics.fill(
-                personalTitleButtonX,
-                personalTitleButtonY,
-                personalTitleButtonX
-                        + personalTitleButtonWidth,
-                personalTitleButtonY
-                        + personalTitleButtonHeight,
-                borderColor
-        );
-        graphics.fill(
-                personalTitleButtonX + 1,
-                personalTitleButtonY + 1,
-                personalTitleButtonX
-                        + personalTitleButtonWidth - 1,
-                personalTitleButtonY
-                        + personalTitleButtonHeight - 1,
-                backgroundColor
-        );
+        graphics.fill(personalTitleButtonX, personalTitleButtonY,
+                personalTitleButtonX + personalTitleButtonWidth,
+                personalTitleButtonY + personalTitleButtonHeight, borderColor);
+        graphics.fill(personalTitleButtonX + 1, personalTitleButtonY + 1,
+                personalTitleButtonX + personalTitleButtonWidth - 1,
+                personalTitleButtonY + personalTitleButtonHeight - 1, backgroundColor);
 
-        graphics.renderItem(
-                Items.NAME_TAG.getDefaultInstance(),
-                personalTitleButtonX
-                        + (personalTitleButtonWidth - 16) / 2,
-                personalTitleButtonY
-                        + (personalTitleButtonHeight - 16) / 2
-        );
+        // 绘制图标（命名牌）
+        graphics.renderItem(Items.NAME_TAG.getDefaultInstance(),
+                personalTitleButtonX + 4,
+                personalTitleButtonY + (personalTitleButtonHeight - 16) / 2);
+
+        // 绘制文字“称号”
+        String label = Component.translatable("screen.playerinfo.titles").getString(); // 或直接 "称号"
+        graphics.drawString(font, label,
+                personalTitleButtonX + personalTitleButtonWidth / 2 - font.width(label) / 2,
+                personalTitleButtonY + (personalTitleButtonHeight - font.lineHeight) / 2,
+                TEXT_COLOR, false);
     }
 
     private void renderHistoryPage(
@@ -1302,67 +1280,38 @@ public final class PlayerInfoScreen extends Screen {
         }
     }
 
-    private void drawPersonalStatRow(
+    private void drawPersonalStatCell(
             GuiGraphics graphics,
             String translationKey,
-            int value,
+            String valueText,
             int x,
+            int y,
             int width,
-            int contentTop,
-            int contentHeight,
-            int rowIndex
+            int height,
+            boolean useLightBackground
     ) {
-        int rowTop = contentTop
-                + contentHeight * rowIndex / 6;
-        int rowBottom = contentTop
-                + contentHeight * (rowIndex + 1) / 6;
+        // 背景
+        int bgColor = useLightBackground ? ROW_COLOR_1 : ROW_COLOR_2;
+        graphics.fill(x, y, x + width, y + height, bgColor);
 
-        if (rowIndex % 2 == 0) {
-            graphics.fill(
-                    x,
-                    rowTop,
-                    x + width,
-                    rowBottom,
-                    ROW_COLOR_1
-            );
-        }
+        // 单元格边框
+        int borderColor = 0x40606060;
+        graphics.fill(x, y, x + width, y + 1, borderColor);
+        graphics.fill(x, y + height - 1, x + width, y + height, borderColor);
+        graphics.fill(x, y, x + 1, y + height, borderColor);
+        graphics.fill(x + width - 1, y, x + width, y + height, borderColor);
 
-        if (rowIndex > 0) {
-            graphics.fill(
-                    x,
-                    rowTop,
-                    x + width,
-                    rowTop + 1,
-                    0x40606060
-            );
-        }
-
-        int textY = rowTop
-                + (rowBottom - rowTop
-                - font.lineHeight) / 2;
-
+        // 标签（左对齐）
         String label = font.plainSubstrByWidth(
-                Component.translatable(
-                        translationKey
-                ).getString(),
-                Math.max(0, width * 2 / 3 - 16)
+                Component.translatable(translationKey).getString(),
+                Math.max(0, width / 2 - 8) // 标签占左半部分，减留白
         );
+        int textY = y + (height - font.lineHeight) / 2;
+        graphics.drawString(font, label, x + 5, textY, 0xFFD0D0D0, false);
 
-        graphics.drawString(
-                font,
-                label,
-                x + 8,
-                textY,
-                0xFFD0D0D0,
-                false
-        );
-
-        String valueText = Integer.toString(value);
-
-        graphics.drawString(
-                font,
-                valueText,
-                x + width - 8 - font.width(valueText),
+        // 数值（右对齐）
+        graphics.drawString(font, valueText,
+                x + width - 5 - font.width(valueText),
                 textY,
                 HEADER_TEXT_COLOR,
                 false

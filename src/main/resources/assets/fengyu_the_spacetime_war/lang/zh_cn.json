@@ -10,7 +10,6 @@
   "screen.playerinfo.title_unequip": "未佩戴",
   "screen.playerinfo.history_title": "历史战绩",
   "screen.playerinfo.history_page_tooltip": "历史记录 %s",
-  "screen.playerinfo.page_switch_tooltip": "当前界面：%1$s；点击切换至：%2$s",
   "screen.playerinfo.loading": "加载中...",
   "screen.playerinfo.no_history": "暂无历史记录",
   "screen.playerinfo.player_name": "玩家名称",
@@ -27,6 +26,8 @@
   "screen.playerinfo.team.blue": "蓝队",
   "screen.playerinfo.no_team": "无队伍",
 
+  "screen.playerinfo.kd": "KD",
+  "screen.playerinfo.win_rate": "胜率",
   "screen.playerinfo.total_games": "总场数",
   "screen.playerinfo.total_wins": "总胜场",
   "screen.playerinfo.total_kills": "总击杀数",

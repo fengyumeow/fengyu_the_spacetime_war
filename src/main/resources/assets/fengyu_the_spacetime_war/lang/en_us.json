@@ -10,7 +10,6 @@
   "screen.playerinfo.title_unequip": "Unequipped",
   "screen.playerinfo.history_title": "Match History",
   "screen.playerinfo.history_page_tooltip": "History %s",
-  "screen.playerinfo.page_switch_tooltip": "Current screen: %1$s; Click to switch to: %2$s",
   "screen.playerinfo.loading": "Loading...",
   "screen.playerinfo.no_history": "No History",
   "screen.playerinfo.player_name": "Player Name",
@@ -27,6 +26,8 @@
   "screen.playerinfo.team.blue": "Blue Team",
   "screen.playerinfo.no_team": "No Team",
 
+  "screen.playerinfo.kd": "KD",
+  "screen.playerinfo.win_rate": "Win Rate",
   "screen.playerinfo.total_games": "Total Games",
   "screen.playerinfo.total_wins": "Total Wins",
   "screen.playerinfo.total_kills": "Total Kills",

@@ -1,7 +1,7 @@
 package com.example.playerinfo.server;
 
 import com.example.playerinfo.PlayerInfoMod;
-import com.example.playerinfo.title.PlayerTitle;
+import com.example.playerinfo.enums.PlayerTitle;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.player.PlayerEvent;

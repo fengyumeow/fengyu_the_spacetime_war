@@ -3,7 +3,7 @@ package com.example.playerinfo.client;
 import com.example.playerinfo.network.ModNetwork;
 import com.example.playerinfo.network.PersonalStats;
 import com.example.playerinfo.network.SetEquippedTitleC2SPacket;
-import com.example.playerinfo.title.PlayerTitle;
+import com.example.playerinfo.enums.PlayerTitle;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
