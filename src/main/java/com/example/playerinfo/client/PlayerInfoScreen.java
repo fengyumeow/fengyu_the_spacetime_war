@@ -6,6 +6,7 @@ package com.example.playerinfo.client;
 import com.example.playerinfo.data.HistoryData;
 import com.example.playerinfo.data.PlayerData;
 import com.example.playerinfo.enums.Job;
+import com.example.playerinfo.enums.Page;
 import com.example.playerinfo.enums.SortKey;
 import com.example.playerinfo.network.*;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -83,8 +84,10 @@ public final class PlayerInfoScreen extends Screen {
             new ArrayList<>();
     private String localPlayerName = "";
 
-    private int pageSwitchButtonX;
-    private int buttonsY;
+    private int combatPageButtonX;
+    private int personalPageButtonX;
+    private int historyPageButtonX;
+    private int pageButtonY;
     private int historyPageButtonsX;
     private int historyPageButtonsY;
 
@@ -169,22 +172,20 @@ public final class PlayerInfoScreen extends Screen {
     }
 
     private void updateButtonPositions() {
-
+        // 更新按钮位置
         int panelWidth = calculatePanelWidth();
         int panelHeight = calculatePanelHeight();
         int panelX = (width - panelWidth) / 2;
         int panelY = (height - panelHeight) / 2;
-
-        pageSwitchButtonX = panelX + PADDING;
-
-        historyPageButtonsX =
-                panelX + panelWidth
-                        - PADDING - BUTTON_WIDTH;
-        historyPageButtonsY =
-                panelY + PADDING + TITLE_HEIGHT;
-
-        // 位于面板标题区域内，避免与边框或表头重叠。
-        buttonsY = panelY + PADDING + 3;
+        // 界面切换按钮位置
+        int startX = panelX + PADDING;
+        combatPageButtonX = startX;
+        personalPageButtonX = startX + BUTTON_WIDTH + BUTTON_GAP;
+        historyPageButtonX = startX + (BUTTON_WIDTH + BUTTON_GAP) * 2;
+        pageButtonY = panelY + PADDING + 3;
+        // 历史记录页码切换按钮
+        historyPageButtonsX = panelX + panelWidth - PADDING - BUTTON_WIDTH;
+        historyPageButtonsY = panelY + PADDING + TITLE_HEIGHT;
     }
 
     @Override
@@ -699,15 +700,15 @@ public final class PlayerInfoScreen extends Screen {
         );
     }
 
-    private void startPageTransition() {
-        if (pageTransitionActive) {
+    private void startPageTransitionTo(Page target) {
+        if (pageTransitionActive || target == currentPage) {
             return;
         }
 
         playButtonClickSound();
 
-        transitionTarget = currentPage.next();
-        selectedPage = transitionTarget;
+        transitionTarget = target;
+        selectedPage = target; // 更新静态选中页面
         pageTransitionStartMillis = Util.getMillis();
         pageTransitionActive = true;
 
@@ -1453,49 +1454,52 @@ public final class PlayerInfoScreen extends Screen {
         );
     }
 
-    private void drawPageControls(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY
-    ) {
-        boolean pageButtonHovered = isInsideButton(
-                mouseX,
-                mouseY,
-                pageSwitchButtonX,
-                buttonsY
-        );
-
+    private void drawPageControls(GuiGraphics graphics, int mouseX, int mouseY) {
+        // 战斗页按钮
+        boolean combatHovered = isInsideButton(mouseX, mouseY, combatPageButtonX, pageButtonY);
         drawControlButton(
                 graphics,
-                pageSwitchButtonX,
-                buttonsY,
-                currentPage.icon,
-                pageButtonHovered
+                combatPageButtonX,
+                pageButtonY,
+                Page.COMBAT.icon,
+                combatHovered,
+                currentPage == Page.COMBAT
         );
 
-        if (!pageTransitionActive && currentPage == Page.HISTORY) {
-            drawHistoryPageButtons(
-                    graphics,
-                    mouseX,
-                    mouseY
-            );
+        // 个人页按钮
+        boolean personalHovered = isInsideButton(mouseX, mouseY, personalPageButtonX, pageButtonY);
+        drawControlButton(
+                graphics,
+                personalPageButtonX,
+                pageButtonY,
+                Page.PERSONAL.icon,
+                personalHovered,
+                currentPage == Page.PERSONAL
+        );
+
+        // 历史页按钮
+        boolean historyHovered = isInsideButton(mouseX, mouseY, historyPageButtonX, pageButtonY);
+        drawControlButton(
+                graphics,
+                historyPageButtonX,
+                pageButtonY,
+                Page.HISTORY.icon,
+                historyHovered,
+                currentPage == Page.HISTORY
+        );
+
+        // 悬停提示
+        if (combatHovered) {
+            graphics.renderTooltip(font, Component.translatable(Page.COMBAT.titleKey), mouseX, mouseY);
+        } else if (personalHovered) {
+            graphics.renderTooltip(font, Component.translatable(Page.PERSONAL.titleKey), mouseX, mouseY);
+        } else if (historyHovered) {
+            graphics.renderTooltip(font, Component.translatable(Page.HISTORY.titleKey), mouseX, mouseY);
         }
 
-        if (pageButtonHovered) {
-            graphics.renderTooltip(
-                    font,
-                    Component.translatable(
-                            "screen.playerinfo.page_switch_tooltip",
-                            Component.translatable(
-                                    currentPage.titleKey
-                            ),
-                            Component.translatable(
-                                    currentPage.next().titleKey
-                            )
-                    ),
-                    mouseX,
-                    mouseY
-            );
+        // 历史分页按钮（仅在历史页面且无动画时显示）
+        if (!pageTransitionActive && currentPage == Page.HISTORY) {
+            drawHistoryPageButtons(graphics, mouseX, mouseY);
         }
     }
 
@@ -1538,23 +1542,6 @@ public final class PlayerInfoScreen extends Screen {
                 );
             }
         }
-    }
-
-    private void drawControlButton(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            String symbol,
-            boolean hovered
-    ) {
-        drawControlButton(
-                graphics,
-                x,
-                y,
-                symbol,
-                hovered,
-                false
-        );
     }
 
     private void drawControlButton(
@@ -1778,8 +1765,25 @@ public final class PlayerInfoScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
         if (mouseButton == 0) {
-            if (isInsideButton(mouseX, mouseY, pageSwitchButtonX, buttonsY)) {
-                startPageTransition();
+            // 战斗页按钮
+            if (isInsideButton(mouseX, mouseY, combatPageButtonX, pageButtonY)) {
+                if (currentPage != Page.COMBAT) {
+                    startPageTransitionTo(Page.COMBAT);
+                }
+                return true;
+            }
+            // 个人页按钮
+            if (isInsideButton(mouseX, mouseY, personalPageButtonX, pageButtonY)) {
+                if (currentPage != Page.PERSONAL) {
+                    startPageTransitionTo(Page.PERSONAL);
+                }
+                return true;
+            }
+            // 历史页按钮
+            if (isInsideButton(mouseX, mouseY, historyPageButtonX, pageButtonY)) {
+                if (currentPage != Page.HISTORY) {
+                    startPageTransitionTo(Page.HISTORY);
+                }
                 return true;
             }
 
@@ -1787,6 +1791,7 @@ public final class PlayerInfoScreen extends Screen {
                 return true;
             }
 
+            // 个人界面
             if (currentPage == Page.PERSONAL) {
                 if (isInsideRectangle(
                         mouseX,
@@ -1817,6 +1822,7 @@ public final class PlayerInfoScreen extends Screen {
                 );
             }
 
+            // 历史记录界面
             if (currentPage == Page.HISTORY) {
                 for (int index = 0;
                      index < HISTORY_PAGE_COUNT;
@@ -2050,48 +2056,6 @@ public final class PlayerInfoScreen extends Screen {
         String shortened = font.plainSubstrByWidth(playerName, textWidth);
         int textColor = isLocalPlayer(playerName) ? LOCAL_PLAYER_NAME_COLOR : TEXT_COLOR;
         graphics.drawString(font, shortened, textX, y + (ROW_HEIGHT - font.lineHeight) / 2, textColor, false);
-    }
-
-    private enum Page {
-        COMBAT(
-                0,
-                "screen.playerinfo.title",
-                "⚔"
-        ),
-
-        PERSONAL(
-                1,
-                "screen.playerinfo.personal_title",
-                "☺"
-        ),
-
-        HISTORY(
-                2,
-                "screen.playerinfo.history_title",
-                "🕑"
-        );
-
-        private final int index;
-        private final String titleKey;
-        private final String icon;
-
-        Page(
-                int index,
-                String titleKey,
-                String icon
-        ) {
-            this.index = index;
-            this.titleKey = titleKey;
-            this.icon = icon;
-        }
-
-        private Page next() {
-            return switch (this) {
-                case COMBAT -> PERSONAL;
-                case PERSONAL -> HISTORY;
-                case HISTORY -> COMBAT;
-            };
-        }
     }
 
 }
