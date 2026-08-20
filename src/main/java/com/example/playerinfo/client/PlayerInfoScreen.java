@@ -330,9 +330,9 @@ public final class PlayerInfoScreen extends Screen {
                 HEADER_COLOR
         );
 
-        int nameWidth = Math.max(1, tableWidth * 22 / 100);
-        int jobWidth = Math.max(1, tableWidth * 14 / 100);
-        int teamWidth = Math.max(1, tableWidth * 14 / 100);
+        int nameWidth = Math.max(1, tableWidth * 28 / 100);
+        int jobWidth = Math.max(1, tableWidth * 12 / 100);
+        int teamWidth = Math.max(1, tableWidth * 12 / 100);
 
         int remainingWidth = tableWidth - nameWidth - jobWidth - teamWidth;
         int scoreWidth = remainingWidth / scoreColumnCount;
