@@ -58,7 +58,6 @@ public final class PlayerInfoScreen extends Screen {
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int HEADER_TEXT_COLOR = 0xFFFFD700;
     private static final int LOCAL_PLAYER_ROW_COLOR = 0x5030A0A0; // 半透明蓝绿色，用于高亮自己
-    private static final int LOCAL_PLAYER_NAME_COLOR = 0xFFFFFF00; // 文字颜色（黄色）
 
     private static final int AVATAR_SIZE = 16;          // 头像大小（可根据行高调整）
     private static final int AVATAR_TEXT_GAP = 4;       // 头像与文本间距
@@ -435,7 +434,7 @@ public final class PlayerInfoScreen extends Screen {
             currentX = tableX;
 
             // 玩家名称
-            drawPlayerNameCell(graphics, entry.playerName(), currentX, rowY, nameWidth);
+            drawPlayerNameCell(graphics, entry, currentX, rowY, nameWidth);
             // Ping
             int ping = ClientPingCache.getPing(entry.playerName());
             int pingColor = PingColors.getColor(ping);
@@ -1334,6 +1333,7 @@ public final class PlayerInfoScreen extends Screen {
         historyScrollOffset = 0;
     }
 
+    // 排序玩家列表
     private Comparator<PlayerInfoEntry> getComparator(SortKey key, boolean descending) {
         Comparator<PlayerInfoEntry> comparator;
         switch (key) {
@@ -1348,9 +1348,20 @@ public final class PlayerInfoScreen extends Screen {
             default -> comparator = Comparator.comparing(PlayerInfoEntry::playerName);
         }
         if (descending) comparator = comparator.reversed();
+        // 优先将未参加对局的玩家排在最后
+        Comparator<PlayerInfoEntry> participationComparator = Comparator.comparingInt(entry ->
+                isParticipant(entry) ? 0 : 1
+        );
         // 次级排序：名字
         comparator = comparator.thenComparing(PlayerInfoEntry::playerName, String.CASE_INSENSITIVE_ORDER);
         return comparator;
+    }
+
+    /**
+     * 判断玩家是否参加对局（职业或队伍同时为空）
+     */
+    private boolean isParticipant(PlayerInfoEntry entry) {
+        return entry.jobId() != 0 && !entry.teamName().isBlank();
     }
 
     private int getScore(PlayerInfoEntry entry, int index) {
@@ -1370,11 +1381,11 @@ public final class PlayerInfoScreen extends Screen {
         // 背景：悬停时稍微变亮，激活时使用更明显的背景
         int bgColor;
         if (hovered) {
-            bgColor = 0xFF505050;
+            bgColor = 0x00505050;
         } else if (active) {
-            bgColor = 0xFF404040;
+            bgColor = 0x00404040;
         } else {
-            bgColor = 0xFF303030; // 与表头背景 HEADER_COLOR 类似
+            bgColor = 0x00303030; // 与表头背景 HEADER_COLOR 类似
         }
         graphics.fill(x, y, x + cellWidth, y + HEADER_HEIGHT, bgColor);
         // 边框：激活列金色，非激活列灰色，悬停时更亮
@@ -1987,24 +1998,39 @@ public final class PlayerInfoScreen extends Screen {
         }
     }
 
-    private void drawPlayerNameCell(GuiGraphics graphics, String playerName, int x, int y, int cellWidth) {
+    private void drawPlayerNameCell(GuiGraphics graphics, PlayerInfoEntry entry, int x, int y, int cellWidth) {
+        String playerName = entry.playerName();
+        boolean isNonParticipant = !isParticipant(entry);
+
+        // 绘制皮肤
         ResourceLocation skin = skinCache.get(playerName);
         int avatarX = x + 2;
         int avatarY = y + (ROW_HEIGHT - AVATAR_SIZE) / 2;
-
+        // 没有皮肤就绘制占位方块
         if (skin != null) {
             PlayerFaceRenderer.draw(graphics, skin, avatarX, avatarY, AVATAR_SIZE);
             RenderSystem.enableBlend(); // 恢复混合状态
         } else {
-            // 可选：绘制灰色占位方块
             graphics.fill(avatarX, avatarY, avatarX + AVATAR_SIZE, avatarY + AVATAR_SIZE, 0xFF808080);
         }
 
+        // 绘制名字
         int textX = avatarX + AVATAR_SIZE + AVATAR_TEXT_GAP;
         int textWidth = Math.max(0, cellWidth - (AVATAR_SIZE + AVATAR_TEXT_GAP + 8));
         String shortened = font.plainSubstrByWidth(playerName, textWidth);
-        int textColor = isLocalPlayer(playerName) ? LOCAL_PLAYER_NAME_COLOR : TEXT_COLOR;
-        graphics.drawString(font, shortened, textX, y + (ROW_HEIGHT - font.lineHeight) / 2, textColor, false);
+
+        Component nameComponent;
+        if (isNonParticipant) {
+            nameComponent = Component.literal(shortened)
+                    .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
+        } else if (isLocalPlayer(playerName)) {
+            nameComponent = Component.literal(shortened)
+                    .withStyle(ChatFormatting.YELLOW);
+        } else {
+            nameComponent = Component.literal(shortened)
+                    .withStyle(ChatFormatting.WHITE);
+        }
+        graphics.drawString(font, nameComponent, textX, y + (ROW_HEIGHT - font.lineHeight) / 2, TEXT_COLOR, false);
     }
 
 }
