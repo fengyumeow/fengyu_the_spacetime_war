@@ -47,6 +47,12 @@ public enum Job {
             true
     ),
 
+    TIME_TRAVELER(
+            7,
+            "screen.playerinfo.job.time_traveler",
+            ChatFormatting.GOLD
+    ),
+
     DRUID(
             456,
             "screen.playerinfo.job.druid",
