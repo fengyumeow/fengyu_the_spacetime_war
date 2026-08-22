@@ -8,8 +8,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.Objective;
-import net.minecraft.world.scores.Score;
 import net.minecraft.world.scores.Scoreboard;
 
 import java.util.*;
@@ -59,18 +59,16 @@ public class matchCommand {
      */
     private static HistoryData readCurrentMatchData(MinecraftServer server, int matchId) {
         Scoreboard scoreboard = server.getScoreboard();
-        Set<String> participants = new HashSet<>();
-
-        // 收集所有在历史计分板中有分数的玩家
-        addScoreOwners(scoreboard, JOB_OBJECTIVE_NAME, participants);
-        addScoreOwners(scoreboard, TEAM_OBJECTIVE_NAME, participants);
-        addScoreOwners(scoreboard, KILL_OBJECTIVE, participants);
-        addScoreOwners(scoreboard, DEATH_OBJECTIVE, participants);
-        addScoreOwners(scoreboard, DAMAGE_OBJECTIVE, participants);
-        addScoreOwners(scoreboard, ABSORBED_OBJECTIVE, participants);
-
         List<PlayerData> playerDataList = new ArrayList<>();
-        for (String playerName : participants) {
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            String playerName = player.getScoreboardName();
+
+            // 检查该玩家是否参与了对局（任意一项有分数）
+            if (!hasAnyScore(scoreboard, playerName)) {
+                continue; // 未参与对局，跳过
+            }
+
             int jobId = readScore(scoreboard, playerName, JOB_OBJECTIVE_NAME);
             int team = readScore(scoreboard, playerName, TEAM_OBJECTIVE_NAME);
             int kills = readScore(scoreboard, playerName, KILL_OBJECTIVE);
@@ -79,28 +77,37 @@ public class matchCommand {
             int absorbed = readScore(scoreboard, playerName, ABSORBED_OBJECTIVE);
 
             List<Integer> scores = List.of(kills, deaths, damage, absorbed);
-            int intTeamColor = switch (team) {
-                case 1 -> ChatFormatting.RED.getColor();
-                case 2 -> ChatFormatting.BLUE.getColor();
-                default -> ChatFormatting.WHITE.getColor();
-            };
-
-            playerDataList.add(new PlayerData(playerName, jobId, String.valueOf(team), intTeamColor, scores));
+            Integer teamColor;
+            switch (team) {
+                case 1 -> teamColor = ChatFormatting.RED.getColor();
+                case 2 -> teamColor = ChatFormatting.BLUE.getColor();
+                default -> teamColor = ChatFormatting.WHITE.getColor();
+            }
+            int intTeamColor = Objects.requireNonNullElse(teamColor, 0xFFFFFFFF);
+            playerDataList.add(new PlayerData(
+                    playerName,
+                    jobId,
+                    String.valueOf(team),
+                    intTeamColor,
+                    scores
+            ));
         }
 
         if (playerDataList.isEmpty()) {
             return null;
         }
+
         return new HistoryData(matchId, playerDataList);
     }
 
-    private static void addScoreOwners(Scoreboard scoreboard, String objectiveName, Set<String> owners) {
-        Objective objective = scoreboard.getObjective(objectiveName);
-        if (objective != null) {
-            for (Score score : scoreboard.getPlayerScores(objective)) {
-                owners.add(score.getOwner());
-            }
-        }
+    /**
+     * 检查玩家在任意历史计分板中是否有分数
+     */
+    private static boolean hasAnyScore(Scoreboard scoreboard, String playerName) {
+        return readScore(scoreboard, playerName, KILL_OBJECTIVE) != 0
+                || readScore(scoreboard, playerName, DEATH_OBJECTIVE) != 0
+                || readScore(scoreboard, playerName, DAMAGE_OBJECTIVE) != 0
+                || readScore(scoreboard, playerName, ABSORBED_OBJECTIVE) != 0;
     }
 
     private static int readScore(Scoreboard scoreboard, String playerName, String objectiveName) {
