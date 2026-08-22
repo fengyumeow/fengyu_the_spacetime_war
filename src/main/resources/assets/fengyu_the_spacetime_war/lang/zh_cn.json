@@ -25,6 +25,8 @@
   "screen.playerinfo.team": "队伍",
   "screen.playerinfo.team.red": "红队",
   "screen.playerinfo.team.blue": "蓝队",
+  "screen.playerinfo.team.lib_prepare_queue": "准备中",
+  "screen.playerinfo.team.debug": "调试模式",
   "screen.playerinfo.no_team": "无队伍",
 
   "screen.playerinfo.kd": "KD",

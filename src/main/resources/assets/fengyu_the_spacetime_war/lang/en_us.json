@@ -25,6 +25,8 @@
   "screen.playerinfo.team": "Team",
   "screen.playerinfo.team.red": "Red Team",
   "screen.playerinfo.team.blue": "Blue Team",
+  "screen.playerinfo.team.lib_prepare_queue": "Prepare Queue",
+  "screen.playerinfo.team.debug": "Debug Mode",
   "screen.playerinfo.no_team": "No Team",
 
   "screen.playerinfo.kd": "KD",

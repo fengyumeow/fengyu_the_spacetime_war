@@ -211,45 +211,28 @@ public final class PlayerInfoScreen extends Screen {
     ) {
         RenderSystem.enableBlend();
 
-        int scoreColumnCount =
-                Math.max(1, objectiveNames.size());
+        int scoreColumnCount = Math.max(1, objectiveNames.size());
 
         int panelWidth = calculatePanelWidth();
         int panelHeight = calculatePanelHeight();
-
         int panelX = (width - panelWidth) / 2;
         int panelY = (height - panelHeight) / 2;
 
         int tableX = panelX + PADDING;
         int tableWidth = panelWidth - PADDING * 2;
 
-        int headerY =
-                panelY + PADDING + TITLE_HEIGHT;
+        int headerY = panelY + PADDING + TITLE_HEIGHT;
 
         int rowsY = headerY + HEADER_HEIGHT;
         int rowsBottom = panelY + panelHeight - PADDING;
         int rowsAreaHeight = rowsBottom - rowsY;
 
-        visibleRows = Math.max(
-                1,
-                rowsAreaHeight / ROW_HEIGHT
-        );
-
-        maxScroll = Math.max(
-                0,
-                sortedPlayers.size() - visibleRows
-        );
-
-        scrollOffset = Mth.clamp(
-                scrollOffset,
-                0,
-                maxScroll
-        );
+        visibleRows = Math.max(1, rowsAreaHeight / ROW_HEIGHT);
+        maxScroll = Math.max(0, sortedPlayers.size() - visibleRows);
+        scrollOffset = Mth.clamp(scrollOffset, 0, maxScroll);
 
         float pagePosition = updatePagePosition();
-        int combatOffsetY = -Math.round(
-                pagePosition * panelHeight
-        );
+        int combatOffsetY = -Math.round(pagePosition * panelHeight);
 
         /*
          * 三个页面组成连续的纵向页面栈。固定裁剪区保证动画期间
@@ -329,6 +312,8 @@ public final class PlayerInfoScreen extends Screen {
                 HEADER_COLOR
         );
 
+        // ===================== 表头内容 =====================
+
         int nameWidth = Math.max(1, tableWidth * 28 / 100);
         int jobWidth = Math.max(1, tableWidth * 12 / 100);
         int teamWidth = Math.max(1, tableWidth * 12 / 100);
@@ -405,15 +390,14 @@ public final class PlayerInfoScreen extends Screen {
                 rowsBottom + combatOffsetY
         );
 
+        // ===================== 表格内容 =====================
+
         // 遍历并绘制每一行玩家数据
         int endIndex = Math.min(sortedPlayers.size(), scrollOffset + visibleRows);
 
         for (int index = scrollOffset; index < endIndex; index++) {
-
             PlayerInfoEntry entry = sortedPlayers.get(index);
-
             int visibleIndex = index - scrollOffset;
-
             int rowY = rowsY + visibleIndex * ROW_HEIGHT;
 
             // 渲染行背景
@@ -468,6 +452,10 @@ public final class PlayerInfoScreen extends Screen {
                     teamName = Component.translatable("screen.playerinfo.team.red").getString();
                 } else if (entry.teamName().equals("blue")) {
                     teamName = Component.translatable("screen.playerinfo.team.blue").getString();
+                } else if (entry.teamName().equals("lib_准备队列")) {
+                    teamName = Component.translatable("screen.playerinfo.team.lib_prepare_queue").getString();
+                } else if (entry.teamName().equals("debug")) {
+                    teamName = Component.translatable("screen.playerinfo.team.debug").getString();
                 } else {
                     teamName = entry.teamName();
                 }
