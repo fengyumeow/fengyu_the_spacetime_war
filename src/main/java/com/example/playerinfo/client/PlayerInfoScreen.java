@@ -773,15 +773,11 @@ public final class PlayerInfoScreen extends Screen {
                 HEADER_TEXT_COLOR
         );
 
-        int contentTop =
-                panelY + PADDING + TITLE_HEIGHT;
-        int contentBottom =
-                panelY + panelHeight - PADDING;
-        int contentHeight =
-                Math.max(1, contentBottom - contentTop);
+        int contentTop = panelY + PADDING + TITLE_HEIGHT;
+        int contentBottom = panelY + panelHeight - PADDING;
+        int contentHeight = Math.max(1, contentBottom - contentTop);
 
-        int dividerX =
-                panelX + panelWidth * 36 / 100;
+        int dividerX = panelX + panelWidth * 36 / 100;
 
         graphics.fill(
                 dividerX,
@@ -792,10 +788,7 @@ public final class PlayerInfoScreen extends Screen {
         );
 
         int leftX = panelX + PADDING;
-        int leftWidth = Math.max(
-                1,
-                dividerX - PADDING - leftX
-        );
+        int leftWidth = Math.max(1, dividerX - PADDING - leftX);
 
         // 渲染皮肤
         int avatarSize = Math.max(8, Math.min(panelWidth / 4, Math.min(leftWidth - 12, contentHeight - font.lineHeight - 30)));
@@ -872,16 +865,13 @@ public final class PlayerInfoScreen extends Screen {
         drawTitleButton(graphics, false);
 
         int rightX = dividerX + PADDING;
-        int rightWidth = Math.max(
-                1,
-                panelX + panelWidth - PADDING - rightX
-        );
+        int rightWidth = Math.max(1, panelX + panelWidth - PADDING - rightX);
 
         // 三行两列网格
         int columns = 2;
         int rows = 4;
         int cellWidth = rightWidth / columns;
-        int cellHeight = contentHeight / rows;
+        int cellHeight = (contentHeight / 2) / rows;
 
         int totalGames = personalStats.totalGames();
         int totalWins = personalStats.totalWins();
@@ -923,7 +913,7 @@ public final class PlayerInfoScreen extends Screen {
                 int index = row * columns + col;
 
                 int cellX = rightX + col * cellWidth;
-                int cellY = contentTop + row * cellHeight;
+                int cellY = contentTop + row * cellHeight + (contentHeight / 2);
 
                 drawPersonalStatCell(graphics,
                         labels.get(index),
